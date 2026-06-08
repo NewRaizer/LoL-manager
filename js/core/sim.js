@@ -205,7 +205,7 @@
         // Condition : usure proportionnelle aux parties et à l'intensité.
         var loss = res.games.length * (2.4 + intensity * 0.6);
         p.condition = LM.U.clamp(p.condition - loss, 0, 100);
-        p.form = LM.U.clamp(p.form + (won ? 1 : -1), -5, 5);
+        p.form = Math.round(LM.U.clamp(p.form + (won ? 1 : -1), -5, 5));
         var dm = won ? 3 : -3;
         if (hasLeader) dm += won ? 1 : 2;                 // un leader soutient le moral
         if (LM.hasTrait(p, "HOTHEAD")) dm *= 1.6;          // tête brûlée = moral instable

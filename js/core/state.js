@@ -130,6 +130,7 @@
     LM.Board.setSeasonObjective(G);
     LM.Club.refreshScoutPool(G, rng);
     if (LM.Story) LM.Story.init(G);
+    if (LM.Training) LM.Training.ensurePlan(G);
     LM.Meta.init(G);
     LM.Calendar.startSeason(G);
     LM.addNews(G, "Bienvenue", "Bienvenue " + G.manager + " ! Vous prenez la tête de " +
@@ -191,6 +192,7 @@
     (G.freeAgents || []).forEach(fixPlayer);
     if (!G.meta || !Object.keys(G.meta).length) { G.meta = {}; LM.Meta.init(G); }
     if (LM.Story) LM.Story.ensure(G);
+    if (LM.Training) LM.Training.ensurePlan(G);
     if (!G.board) {
       LM.Board.init(G); LM.Board.setSeasonObjective(G);
       if (G.season && G.season.stage && G.season.stage.type === "split")

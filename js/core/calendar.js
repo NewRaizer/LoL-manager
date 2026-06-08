@@ -350,6 +350,7 @@
 
   // -------------------- Temps & intersaison --------------------
   function tickDay(G) {
+    if (LM.Training) LM.Training.applyWeeklyPlan(G);
     // Avance d'environ une semaine par tour.
     G.date.day += 7;
     while (G.date.day > 28) { G.date.day -= 28; G.date.month++; }

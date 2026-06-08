@@ -24,6 +24,8 @@
   function ovrTag(o) { return '<span class="ovr ' + LM.ratingColor(o) + '">' + o + '</span>'; }
   function roleTag(r) { return '<span class="role-tag">' + r + '</span>'; }
   function teamMini(id) { var t = G.teams[id]; return t.flag + ' <b>' + esc(t.short) + '</b>'; }
+  function num(v) { return Math.round(v || 0); }
+  function formTxt(v) { v = num(v); return (v >= 0 ? "+" : "") + v; }
 
   function nav(s, p) { screen = s; params = p || {}; render(); window.scrollTo(0, 0); }
   UI.nav = nav;
@@ -233,7 +235,7 @@
     var lineCard = '<div class="card"><h3>Votre cinq titulaire</h3><table><tbody>' +
       LM.ROLES.map(function (rr) { var p = line[rr]; if (!p) return "";
         return '<tr><td>' + roleTag(rr) + '</td><td>' + p.nat + ' <b>' + esc(p.name) + '</b></td>' +
-          '<td class="num">' + ovrTag(p.ovr) + '</td><td class="num muted">Forme ' + (p.form >= 0 ? "+" : "") + p.form +
+          '<td class="num">' + ovrTag(p.ovr) + '</td><td class="num muted">Forme ' + formTxt(p.form) +
           '</td></tr>'; }).join("") +
       '</tbody></table></div>';
 
@@ -272,9 +274,9 @@
         '<td data-label="Âge" class="num">' + p.age + '</td>' +
         '<td data-label="OVR" class="num">' + ovrTag(p.ovr) + '</td>' +
         '<td data-label="POT" class="num">' + ovrTag(p.potential) + '</td>' +
-        '<td data-label="Forme" class="num">' + (p.form >= 0 ? "+" : "") + p.form + '</td>' +
-        '<td data-label="Cond." class="num">' + p.condition + '%</td>' +
-        '<td data-label="Moral" class="num">' + p.morale + '</td>' +
+        '<td data-label="Forme" class="num">' + formTxt(p.form) + '</td>' +
+        '<td data-label="Cond." class="num">' + num(p.condition) + '%</td>' +
+        '<td data-label="Moral" class="num">' + num(p.morale) + '</td>' +
         '<td data-label="Valeur" class="num muted">' + LM.U.money(p.value) + '</td></tr>';
     }).join("");
     return '<div class="page-head"><h1>Effectif — ' + esc(my.name) + '</h1>' +
@@ -318,9 +320,9 @@
       '<button class="btn" data-action="nav" data-s="roster">← Effectif</button></div>' +
       '<div class="grid cols-2"><div class="card"><h3>Attributs</h3>' + bars +
       '<h3 style="margin-top:16px">État</h3>' +
-      '<div class="kpi"><div class="k"><div class="v">' + (p.form >= 0 ? "+" : "") + p.form + '</div><div class="l">Forme</div></div>' +
-      '<div class="k"><div class="v">' + p.condition + '%</div><div class="l">Condition</div></div>' +
-      '<div class="k"><div class="v">' + p.morale + '</div><div class="l">Moral</div></div></div></div>' +
+      '<div class="kpi"><div class="k"><div class="v">' + formTxt(p.form) + '</div><div class="l">Forme</div></div>' +
+      '<div class="k"><div class="v">' + num(p.condition) + '%</div><div class="l">Condition</div></div>' +
+      '<div class="k"><div class="v">' + num(p.morale) + '</div><div class="l">Moral</div></div></div></div>' +
       '<div class="card"><h3>Maîtrise des champions</h3>' + (champBars || '<p class="muted">Aucun champion maîtrisé.</p>') +
       '<h3 style="margin-top:16px">Entraînement (1 séance / tour)</h3>' +
       '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">' + trainSel +
@@ -444,16 +446,53 @@
   // ---------- Entraînement ----------
   function renderTraining() {
     var my = LM.myTeam(G);
+    LM.Training.ensurePlan(G);
+    var plan = my.trainingPlan;
+    var summary = LM.Training.planSummary(G);
+    var drillKeys = Object.keys(LM.Training.DRILLS);
+    var dayCards = plan.map(function (d, i) {
+      var drill = LM.Training.DRILLS[d.drill];
+      var date = LM.Training.dayDate(G, i);
+      var options = drillKeys.map(function (k) {
+        return '<option value="' + k + '" ' + (k === d.drill ? "selected" : "") + '>' + LM.Training.DRILLS[k].name + '</option>';
+      }).join("");
+      var intens = [1, 2, 3].map(function (v) {
+        return '<button class="intensity-dot ' + (d.intensity === v ? "active" : "") + '" data-action="plan-intensity" data-day="' + i + '" data-v="' + v + '">' + v + '</button>';
+      }).join("");
+      return '<div class="day-card day-' + drill.kind + '">' +
+        '<div class="day-head"><div><b>' + LM.Training.DAYS[i] + '</b><span>' + LM.U.fmtDate(date) + '</span></div>' +
+        '<span class="tag">' + drill.kind + '</span></div>' +
+        '<select data-action="plan-drill" data-day="' + i + '">' + options + '</select>' +
+        '<div class="day-controls"><span class="mini-label">Intensité</span><div>' + intens + '</div></div>' +
+        '<div class="day-metrics"><span>Charge ' + (drill.load * d.intensity) + '</span><span>Récup ' + Math.max(0, drill.recovery) + '</span></div>' +
+        '<p>' + esc(drill.desc) + '</p></div>';
+    }).join("");
+    var presets = [
+      ["balanced", "Équilibré"], ["match", "Prépa match"], ["recovery", "Repos"], ["bootcamp", "Bootcamp"]
+    ].map(function (p) {
+      return '<button class="btn sm" data-action="plan-preset" data-key="' + p[0] + '">' + p[1] + '</button>';
+    }).join("");
+    var reportDays = my.trainingReport && my.trainingReport.days ? my.trainingReport.days : [];
+    var report = my.trainingReport ? '<div class="card training-report"><h3>Dernier bilan hebdo</h3>' +
+      '<div class="kpi"><div class="k"><div class="v">' + my.trainingReport.load + '</div><div class="l">Charge</div></div>' +
+      '<div class="k"><div class="v">' + my.trainingReport.progress + '</div><div class="l">Attributs</div></div>' +
+      '<div class="k"><div class="v">' + my.trainingReport.mastery + '</div><div class="l">Maîtrises</div></div>' +
+      '<div class="k"><div class="v">' + my.trainingReport.injuries + '</div><div class="l">Blessures</div></div></div>' +
+      '<div class="week-report-days">' + reportDays.map(function (d) {
+        return '<span class="chip">' + LM.Training.DAYS[d.day] + ' · ' + esc(LM.Training.DRILLS[d.drill].name) + '</span>';
+      }).join("") + '</div></div>' : "";
     var attrs = LM.Training.ATTRS;
     var rows = my.roster.slice().sort(function (a, b) {
       return LM.ROLES.indexOf(a.role) - LM.ROLES.indexOf(b.role); }).map(function (p) {
       var trained = G.trainingUsed[p.id];
       var sel = '<select id="ta_' + p.id + '">' + Object.keys(attrs).map(function (k) {
         return '<option value="' + k + '">' + attrs[k] + '</option>'; }).join("") + '</select>';
-      var st = p.injury ? '<span class="chip" style="border-color:var(--red);color:var(--red)">🩹 blessé</span>' : (p.condition + "%");
+      var st = p.injury ? '<span class="chip" style="border-color:var(--red);color:var(--red)">🩹 blessé</span>' : (num(p.condition) + "%");
       return '<tr><td data-label="Poste">' + roleTag(p.role) + '</td><td data-label="Joueur">' + p.nat + ' <b>' + esc(p.name) + '</b></td>' +
         '<td data-label="OVR/POT" class="num">' + ovrTag(p.ovr) + '→' + ovrTag(p.potential) + '</td>' +
+        '<td data-label="Forme" class="num">' + formTxt(p.form) + '</td>' +
         '<td data-label="Cond." class="num">' + st + '</td>' +
+        '<td data-label="Moral" class="num">' + num(p.morale) + '</td>' +
         '<td data-label="Attribut">' + sel + '</td>' +
         '<td data-label="Action" class="action-cell"><button class="btn sm primary" data-action="train-row" data-id="' + p.id + '" ' +
         (trained || p.injury ? "disabled" : "") + '>' + (trained ? "✓" : "Entraîner") + '</button></td></tr>';
@@ -480,12 +519,20 @@
     }).join("");
     var opts = my.roster.map(function (p) { return '<option value="' + p.id + '">' + esc(p.name) + ' (' + p.age + ' ans)</option>'; }).join("");
 
-    return '<div class="page-head"><div><h1>Entraînement & Staff</h1>' +
-      '<div class="sub">1 séance par joueur et par tour. Infrastructures <b>' + my.facilities + '/10</b> · Intensité ↑ = gains ↑ mais fatigue & blessures ↑</div></div>' +
+    return '<div class="page-head"><div><h1>Planning d\'entraînement</h1>' +
+      '<div class="sub">Semaine du ' + LM.U.fmtDate(G.date) + ' · Infrastructures <b>' + my.facilities + '/10</b></div></div>' +
       '<button class="btn gold" data-action="upgrade">⬆ Infrastructures (' + LM.U.money(my.facilities * 250000) + ')</button></div>' +
-      '<div class="card" style="margin-bottom:16px"><h3>Intensité d\'entraînement</h3><div class="leaguetabs">' + intens + '</div></div>' +
-      '<div class="card"><table class="stack-table"><thead><tr><th>Poste</th><th>Joueur</th><th class="num">OVR/POT</th>' +
-      '<th class="num">Cond.</th><th>Attribut</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      '<div class="card planner-card"><div class="planner-top"><div class="kpi">' +
+      '<div class="k"><div class="v">' + summary.load + '</div><div class="l">Charge</div></div>' +
+      '<div class="k"><div class="v">' + summary.restDays + '</div><div class="l">Jours récup</div></div>' +
+      '<div class="k"><div class="v">' + summary.avgCond + '%</div><div class="l">Condition</div></div>' +
+      '<div class="k"><div class="v">' + summary.projected + '%</div><div class="l">Projection</div></div>' +
+      '<div class="k"><div class="v">' + summary.risk + '</div><div class="l">Risque</div></div></div>' +
+      '<div class="preset-row">' + presets + '</div></div><div class="week-grid">' + dayCards + '</div></div>' +
+      report +
+      '<div class="card" style="margin-top:16px"><h3>Rythme club global</h3><div class="leaguetabs">' + intens + '</div></div>' +
+      '<div class="card"><h3>Séances ciblées joueurs</h3><table class="stack-table"><thead><tr><th>Poste</th><th>Joueur</th><th class="num">OVR/POT</th>' +
+      '<th class="num">Forme</th><th class="num">Cond.</th><th class="num">Moral</th><th>Attribut</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
       '<div class="grid cols-2" style="margin-top:16px">' +
       '<div class="card"><h3>Staff technique</h3><table class="stack-table"><tbody>' + staff + '</tbody></table></div>' +
       '<div class="card"><h3>Mentorat (progression passive des jeunes)</h3>' +
@@ -823,6 +870,9 @@
         var rr = LM.Transfers.release(G, d.id); toast(rr.msg); if (rr.ok) { save(); nav("roster"); } break;
       }
       case "upgrade": act(function () { return LM.Training.upgradeFacilities(G); }); break;
+      case "plan-drill": act(function () { return LM.Training.setPlanDay(G, d.day, e.target.value, null); }); break;
+      case "plan-intensity": act(function () { return LM.Training.setPlanDay(G, d.day, null, d.v); }); break;
+      case "plan-preset": act(function () { return LM.Training.applyPreset(G, d.key); }); break;
       case "buy": act(function () { return LM.Transfers.buy(G, d.id); }); break;
       case "tr-role": params.role = d.r; render(); break;
 
@@ -894,6 +944,8 @@
           if (g && g.teams) { G = LM.migrate(g); UI.G = G; LM.save(G); nav("hub"); toast("Sauvegarde importée !"); }
           else toast("Fichier de sauvegarde invalide.");
         });
+      } else if (e.target && e.target.dataset && e.target.dataset.action) {
+        handle(e.target.dataset.action, e.target.dataset, e);
       }
     });
     nav("menu");

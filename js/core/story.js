@@ -274,7 +274,7 @@
     if (ev.type === "PLAYER_MOOD") {
       p = my.roster.find(function (x) { return x.id === ev.playerId; });
       if (!p) return "Le dossier joueur n'est plus d'actualite.";
-      if (choice === "promise") { p.morale = LM.U.clamp(p.morale + 13, 0, 100); p.form = LM.U.clamp(p.form + 1, -5, 5); G.story.hype += 2; return p.name + " se sent soutenu."; }
+      if (choice === "promise") { p.morale = LM.U.clamp(p.morale + 13, 0, 100); p.form = Math.round(LM.U.clamp(p.form + 1, -5, 5)); G.story.hype += 2; return p.name + " se sent soutenu."; }
       if (choice === "media") { p.morale = LM.U.clamp(p.morale + 7, 0, 100); p.condition = LM.U.clamp(p.condition - 5, 0, 100); G.story.fanbase += 3; return p.name + " gagne en popularite."; }
       p.morale = LM.U.clamp(p.morale - 8, 0, 100); if (G.board) G.board.confidence = LM.U.clamp(G.board.confidence + 2, 0, 100); return "Message ferme envoye au vestiaire.";
     }
