@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" role="img" aria-label="Abstract esports arena map">
+  <defs>
+    <linearGradient id="lane" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#18c7b8" stop-opacity=".42"/>
+      <stop offset=".5" stop-color="#e8b451" stop-opacity=".28"/>
+      <stop offset="1" stop-color="#ff5d5d" stop-opacity=".36"/>
+    </linearGradient>
+    <pattern id="grid" width="52" height="52" patternUnits="userSpaceOnUse">
+      <path d="M52 0H0V52" fill="none" stroke="#ffffff" stroke-opacity=".045" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="800" fill="#07090d"/>
+  <rect width="1200" height="800" fill="url(#grid)"/>
+  <path d="M95 670 1105 130" fill="none" stroke="url(#lane)" stroke-width="18" stroke-linecap="round" opacity=".36"/>
+  <path d="M110 150C330 250 470 310 605 400c140 92 285 155 500 250" fill="none" stroke="#18c7b8" stroke-opacity=".16" stroke-width="10" stroke-linecap="round"/>
+  <path d="M95 390h1010" fill="none" stroke="#e8b451" stroke-opacity=".15" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="190" cy="620" r="56" fill="none" stroke="#18c7b8" stroke-opacity=".28" stroke-width="4"/>
+  <circle cx="1010" cy="180" r="56" fill="none" stroke="#ff5d5d" stroke-opacity=".24" stroke-width="4"/>
+  <path d="M190 620h165m655-440H845" fill="none" stroke="#ffffff" stroke-opacity=".1" stroke-width="3" stroke-linecap="round"/>
+  <path d="M515 350h170v100H515z" fill="none" stroke="#ffffff" stroke-opacity=".12" stroke-width="2"/>
+</svg>

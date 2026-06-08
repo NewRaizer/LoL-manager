@@ -87,7 +87,7 @@
       '<button class="btn" data-action="to-menu">← Retour</button></div>' +
       '<div class="card"><h3>1. Votre nom de manager</h3>' +
       '<input id="mgrname" placeholder="Votre nom" value="' + esc(params.mgr || "") + '" ' +
-      'style="background:var(--bg2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:10px;width:280px" /></div>' +
+      'style="background:var(--bg-2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:10px;width:280px" /></div>' +
       '<div class="card" style="margin-top:16px"><h3>2. Choisissez votre équipe</h3>' +
       '<div class="leaguetabs">' + tabs + '</div>' +
       '<div class="teamgrid">' + cards + '</div></div>' +
@@ -122,7 +122,7 @@
       '<div class="lg">' + my.league + ' · ' + esc(G.manager) + '</div>' +
       '<div class="bud">💰 ' + LM.U.money(my.budget) + '</div></div>' +
       nav +
-      '<div style="margin-top:auto;display:flex;flex-direction:column;gap:6px;padding-top:12px">' +
+      '<div class="sidebar-actions">' +
       '<button class="btn sm" data-action="export">⬇ Exporter sauvegarde</button>' +
       '<button class="btn sm" data-action="to-menu">⏏ Menu principal</button></div>' +
       '</div><div class="content">' + inner + '</div></div>';
@@ -159,13 +159,13 @@
         '<div class="mid">VS</div>' +
         '<div class="team"><div class="flag">' + G.teams[ps.awayId].flag + '</div>' +
         '<div class="nm">' + esc(G.teams[ps.awayId].short) + '</div></div></div>' +
-        '<div style="text-align:center;margin-top:8px">' +
+        '<div class="match-actions">' +
         '<button class="btn primary big" data-action="play">▶ Jouer le match</button>' +
         ' <button class="btn" data-action="quicksim">⏩ Sim. rapide</button></div></div>';
     } else {
       matchCard = '<div class="card nextmatch"><h3>' + esc(desc.title) + '</h3>' +
         '<p class="muted">Votre équipe n\'est pas concernée par ce tour.</p>' +
-        '<div style="text-align:center"><button class="btn primary big" data-action="simround">⏩ Simuler le tour</button></div></div>';
+        '<div class="match-actions"><button class="btn primary big" data-action="simround">⏩ Simuler le tour</button></div></div>';
     }
     var logCard = lastLog.length ? '<div class="card"><h3>Derniers résultats</h3>' +
       lastLog.map(function (r) {
@@ -210,20 +210,20 @@
     var rows = roster.map(function (p) {
       var tmini = (p.traits || []).map(function (k) { return LM.TRAITS[k] ? LM.TRAITS[k].emoji : ""; }).join("");
       return '<tr data-action="player" data-id="' + p.id + '" style="cursor:pointer">' +
-        '<td>' + roleTag(p.role) + (starters[p.id] ? ' <span class="chip" style="border-color:var(--accent);color:var(--accent)">Titulaire</span>' : '') + '</td>' +
-        '<td>' + p.nat + ' <b>' + esc(p.name) + '</b> ' + tmini + (p.injury ? ' 🩹' : '') + '</td>' +
-        '<td class="num">' + p.age + '</td>' +
-        '<td class="num">' + ovrTag(p.ovr) + '</td>' +
-        '<td class="num">' + ovrTag(p.potential) + '</td>' +
-        '<td class="num">' + (p.form >= 0 ? "+" : "") + p.form + '</td>' +
-        '<td class="num">' + p.condition + '%</td>' +
-        '<td class="num">' + p.morale + '</td>' +
-        '<td class="num muted">' + LM.U.money(p.value) + '</td></tr>';
+        '<td data-label="Poste">' + roleTag(p.role) + (starters[p.id] ? ' <span class="chip" style="border-color:var(--accent);color:var(--accent)">Titulaire</span>' : '') + '</td>' +
+        '<td data-label="Joueur">' + p.nat + ' <b>' + esc(p.name) + '</b> ' + tmini + (p.injury ? ' 🩹' : '') + '</td>' +
+        '<td data-label="Âge" class="num">' + p.age + '</td>' +
+        '<td data-label="OVR" class="num">' + ovrTag(p.ovr) + '</td>' +
+        '<td data-label="POT" class="num">' + ovrTag(p.potential) + '</td>' +
+        '<td data-label="Forme" class="num">' + (p.form >= 0 ? "+" : "") + p.form + '</td>' +
+        '<td data-label="Cond." class="num">' + p.condition + '%</td>' +
+        '<td data-label="Moral" class="num">' + p.morale + '</td>' +
+        '<td data-label="Valeur" class="num muted">' + LM.U.money(p.value) + '</td></tr>';
     }).join("");
     return '<div class="page-head"><h1>Effectif — ' + esc(my.name) + '</h1>' +
       '<div class="sub">' + my.roster.length + ' joueurs · Masse salariale ' +
       LM.U.money(my.roster.reduce(function (s, p) { return s + p.salary; }, 0)) + '/an</div></div>' +
-      '<div class="card"><table class="row-hover"><thead><tr><th>Poste</th><th>Joueur</th><th class="num">Âge</th>' +
+      '<div class="card"><table class="row-hover stack-table"><thead><tr><th>Poste</th><th>Joueur</th><th class="num">Âge</th>' +
       '<th class="num">OVR</th><th class="num">POT</th><th class="num">Forme</th><th class="num">Cond.</th>' +
       '<th class="num">Moral</th><th class="num">Valeur</th></tr></thead><tbody>' + rows + '</tbody></table>' +
       '<p class="muted" style="margin-top:8px">Cliquez sur un joueur pour voir sa fiche détaillée.</p></div>';
@@ -301,7 +301,7 @@
     return '<div class="page-head"><div><h1>Méta — Patch 15.' + G.patchNote + '</h1>' +
       '<div class="sub">Tier list du moment. Elle change à chaque split : adaptez vos drafts et entraînements.</div></div></div>' +
       '<p class="muted">Contres : Assassin ▶ Mage/Tireur · Tireur/Mage ▶ Tank/Combattant · Tank/Combattant ▶ Assassin · Enchanteur protège des Assassins.</p>' +
-      '<div class="grid" style="grid-template-columns:repeat(5,1fr)">' + cols + '</div>';
+      '<div class="grid meta-grid">' + cols + '</div>';
   }
 
   // ---------- Compétition (classement + bracket) ----------
@@ -363,17 +363,17 @@
       .sort(function (a, b) { return b.p.ovr - a.p.ovr; }).slice(0, 60);
     var rows = market.map(function (e) {
       var p = e.p;
-      return '<tr><td>' + roleTag(p.role) + '</td><td>' + p.nat + ' <b>' + esc(p.name) + '</b></td>' +
-        '<td class="num">' + p.age + '</td><td class="num">' + ovrTag(p.ovr) + '</td><td class="num">' + ovrTag(p.potential) + '</td>' +
-        '<td>' + (e.free ? '<span class="chip">Libre</span>' : G.teams[e.fromTeam].short) + '</td>' +
-        '<td class="num">' + LM.U.money(e.fee) + '</td>' +
-        '<td><button class="btn sm primary" data-action="buy" data-id="' + p.id + '" ' +
+      return '<tr><td data-label="Poste">' + roleTag(p.role) + '</td><td data-label="Joueur">' + p.nat + ' <b>' + esc(p.name) + '</b></td>' +
+        '<td data-label="Âge" class="num">' + p.age + '</td><td data-label="OVR" class="num">' + ovrTag(p.ovr) + '</td><td data-label="POT" class="num">' + ovrTag(p.potential) + '</td>' +
+        '<td data-label="Club">' + (e.free ? '<span class="chip">Libre</span>' : G.teams[e.fromTeam].short) + '</td>' +
+        '<td data-label="Prix" class="num">' + LM.U.money(e.fee) + '</td>' +
+        '<td data-label="Action" class="action-cell"><button class="btn sm primary" data-action="buy" data-id="' + p.id + '" ' +
         (my.budget < e.fee ? "disabled" : "") + '>Acheter</button></td></tr>';
     }).join("");
     return '<div class="page-head"><div><h1>Marché des transferts</h1>' +
       '<div class="sub">Budget : <b style="color:var(--gold)">' + LM.U.money(my.budget) + '</b></div></div></div>' +
       '<div class="leaguetabs">' + pills + '</div>' +
-      '<div class="card"><table class="row-hover"><thead><tr><th>Poste</th><th>Joueur</th><th class="num">Âge</th>' +
+      '<div class="card"><table class="row-hover stack-table"><thead><tr><th>Poste</th><th>Joueur</th><th class="num">Âge</th>' +
       '<th class="num">OVR</th><th class="num">POT</th><th>Club</th><th class="num">Prix</th><th></th></tr></thead><tbody>' +
       rows + '</tbody></table></div>';
   }
@@ -388,19 +388,19 @@
       var sel = '<select id="ta_' + p.id + '">' + Object.keys(attrs).map(function (k) {
         return '<option value="' + k + '">' + attrs[k] + '</option>'; }).join("") + '</select>';
       var st = p.injury ? '<span class="chip" style="border-color:var(--red);color:var(--red)">🩹 blessé</span>' : (p.condition + "%");
-      return '<tr><td>' + roleTag(p.role) + '</td><td>' + p.nat + ' <b>' + esc(p.name) + '</b></td>' +
-        '<td class="num">' + ovrTag(p.ovr) + '→' + ovrTag(p.potential) + '</td>' +
-        '<td class="num">' + st + '</td>' +
-        '<td style="min-width:160px">' + sel + '</td>' +
-        '<td><button class="btn sm primary" data-action="train-row" data-id="' + p.id + '" ' +
+      return '<tr><td data-label="Poste">' + roleTag(p.role) + '</td><td data-label="Joueur">' + p.nat + ' <b>' + esc(p.name) + '</b></td>' +
+        '<td data-label="OVR/POT" class="num">' + ovrTag(p.ovr) + '→' + ovrTag(p.potential) + '</td>' +
+        '<td data-label="Cond." class="num">' + st + '</td>' +
+        '<td data-label="Attribut">' + sel + '</td>' +
+        '<td data-label="Action" class="action-cell"><button class="btn sm primary" data-action="train-row" data-id="' + p.id + '" ' +
         (trained || p.injury ? "disabled" : "") + '>' + (trained ? "✓" : "Entraîner") + '</button></td></tr>';
     }).join("");
 
     // Staff
     var staff = Object.keys(LM.Club.STAFF).map(function (k) {
       var lvl = my.staff[k], cost = lvl * 200000;
-      return '<tr><td>' + LM.Club.STAFF[k] + '</td><td class="num">' + lvl + '/10</td>' +
-        '<td><button class="btn sm" data-action="upg-staff" data-key="' + k + '" ' +
+      return '<tr><td data-label="Staff">' + LM.Club.STAFF[k] + '</td><td data-label="Niveau" class="num">' + lvl + '/10</td>' +
+        '<td data-label="Action" class="action-cell"><button class="btn sm" data-action="upg-staff" data-key="' + k + '" ' +
         (lvl >= 10 || my.budget < cost ? "disabled" : "") + '>' + (lvl >= 10 ? "Max" : "⬆ " + LM.U.money(cost)) + '</button></td></tr>';
     }).join("");
     var intens = [[1, "Léger"], [2, "Normal"], [3, "Intensif"]].map(function (o) {
@@ -412,8 +412,8 @@
       var me = my.roster.find(function (x) { return x.id === m.mentorId; });
       var yo = my.roster.find(function (x) { return x.id === m.menteeId; });
       if (!me || !yo) return "";
-      return '<tr><td>' + esc(me.name) + ' 🎓</td><td>→ ' + esc(yo.name) + '</td>' +
-        '<td><button class="btn sm danger" data-action="clear-mentor" data-id="' + yo.id + '">×</button></td></tr>';
+      return '<tr><td data-label="Mentor">' + esc(me.name) + ' 🎓</td><td data-label="Jeune">→ ' + esc(yo.name) + '</td>' +
+        '<td data-label="Action" class="action-cell"><button class="btn sm danger" data-action="clear-mentor" data-id="' + yo.id + '">×</button></td></tr>';
     }).join("");
     var opts = my.roster.map(function (p) { return '<option value="' + p.id + '">' + esc(p.name) + ' (' + p.age + ' ans)</option>'; }).join("");
 
@@ -421,12 +421,12 @@
       '<div class="sub">1 séance par joueur et par tour. Infrastructures <b>' + my.facilities + '/10</b> · Intensité ↑ = gains ↑ mais fatigue & blessures ↑</div></div>' +
       '<button class="btn gold" data-action="upgrade">⬆ Infrastructures (' + LM.U.money(my.facilities * 250000) + ')</button></div>' +
       '<div class="card" style="margin-bottom:16px"><h3>Intensité d\'entraînement</h3><div class="leaguetabs">' + intens + '</div></div>' +
-      '<div class="card"><table><thead><tr><th>Poste</th><th>Joueur</th><th class="num">OVR/POT</th>' +
+      '<div class="card"><table class="stack-table"><thead><tr><th>Poste</th><th>Joueur</th><th class="num">OVR/POT</th>' +
       '<th class="num">Cond.</th><th>Attribut</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
       '<div class="grid cols-2" style="margin-top:16px">' +
-      '<div class="card"><h3>Staff technique</h3><table><tbody>' + staff + '</tbody></table></div>' +
+      '<div class="card"><h3>Staff technique</h3><table class="stack-table"><tbody>' + staff + '</tbody></table></div>' +
       '<div class="card"><h3>Mentorat (progression passive des jeunes)</h3>' +
-      '<table><tbody>' + (ment || '<tr><td class="muted">Aucun binôme.</td></tr>') + '</tbody></table>' +
+      '<table class="stack-table"><tbody>' + (ment || '<tr><td data-label="Mentorat" class="muted">Aucun binôme.</td></tr>') + '</tbody></table>' +
       '<div style="display:flex;gap:6px;align-items:center;margin-top:10px;flex-wrap:wrap">' +
       '<select id="mentorSel" style="flex:1">' + opts + '</select><span>encadre</span>' +
       '<select id="menteeSel" style="flex:1">' + opts + '</select>' +
@@ -438,21 +438,21 @@
   function renderJeunes() {
     var my = LM.myTeam(G);
     var acad = (my.academy.prospects || []).map(function (p) {
-      return '<tr><td>' + roleTag(p.role) + '</td><td><b>' + esc(p.name) + '</b></td>' +
-        '<td class="num">' + p.age + '</td><td class="num">' + ovrTag(p.ovr) + '→' + ovrTag(p.potential) + '</td>' +
-        '<td>' + LM.traitBadges(p) + '</td>' +
-        '<td><button class="btn sm primary" data-action="promote" data-id="' + p.id + '">Promouvoir</button> ' +
+      return '<tr><td data-label="Poste">' + roleTag(p.role) + '</td><td data-label="Nom"><b>' + esc(p.name) + '</b></td>' +
+        '<td data-label="Âge" class="num">' + p.age + '</td><td data-label="OVR/POT" class="num">' + ovrTag(p.ovr) + '→' + ovrTag(p.potential) + '</td>' +
+        '<td data-label="Traits">' + LM.traitBadges(p) + '</td>' +
+        '<td data-label="Action" class="action-cell"><button class="btn sm primary" data-action="promote" data-id="' + p.id + '">Promouvoir</button> ' +
         '<button class="btn sm danger" data-action="release-prospect" data-id="' + p.id + '">×</button></td></tr>';
-    }).join("") || '<tr><td colspan="6" class="muted">Aucun jeune. Améliorez l\'académie ; de nouveaux talents arrivent chaque intersaison.</td></tr>';
+    }).join("") || '<tr><td data-label="Académie" colspan="6" class="muted">Aucun jeune. Améliorez l\'académie ; de nouveaux talents arrivent chaque intersaison.</td></tr>';
 
     var scout = (G.scoutPool || []).slice().sort(function (a, b) {
       return (b.potentialKnown ? b.potential : 0) - (a.potentialKnown ? a.potential : 0); }).map(function (p) {
       var pot = p.potentialKnown ? (ovrTag(p.ovr) + '→' + ovrTag(p.potential)) : (ovrTag(p.ovr) + '→<span class="muted">?</span>');
       var traits = p.potentialKnown ? LM.traitBadges(p) : '<span class="muted">non scouté</span>';
       var fee = Math.round(p.value * 0.5) + 30000;
-      return '<tr><td>' + roleTag(p.role) + '</td><td><b>' + esc(p.name) + '</b></td><td class="num">' + p.age + '</td>' +
-        '<td class="num">' + pot + '</td><td>' + traits + '</td>' +
-        '<td>' + (p.potentialKnown ? "" : '<button class="btn sm" data-action="scout" data-id="' + p.id + '">🔭 Scouter (40 k€)</button> ') +
+      return '<tr><td data-label="Poste">' + roleTag(p.role) + '</td><td data-label="Nom"><b>' + esc(p.name) + '</b></td><td data-label="Âge" class="num">' + p.age + '</td>' +
+        '<td data-label="OVR/POT" class="num">' + pot + '</td><td data-label="Traits">' + traits + '</td>' +
+        '<td data-label="Action" class="action-cell">' + (p.potentialKnown ? "" : '<button class="btn sm" data-action="scout" data-id="' + p.id + '">🔭 Scouter (40 k€)</button> ') +
         '<button class="btn sm primary" data-action="sign-prospect" data-id="' + p.id + '" ' +
         (my.budget < fee ? "disabled" : "") + '>Signer ' + LM.U.money(fee) + '</button></td></tr>';
     }).join("");
@@ -461,11 +461,11 @@
       '<div class="sub">Budget : <b style="color:var(--gold)">' + LM.U.money(my.budget) + '</b></div></div>' +
       '<button class="btn gold" data-action="upgrade-academy">⬆ Académie niv. ' + my.academy.level + '/10 (' +
       LM.U.money(my.academy.level * 300000) + ')</button></div>' +
-      '<div class="card"><h3>🎓 Académie — vos jeunes formés</h3><table><thead><tr><th>Poste</th><th>Nom</th>' +
+      '<div class="card"><h3>🎓 Académie — vos jeunes formés</h3><table class="stack-table"><thead><tr><th>Poste</th><th>Nom</th>' +
       '<th class="num">Âge</th><th class="num">OVR/POT</th><th>Traits</th><th></th></tr></thead><tbody>' + acad + '</tbody></table></div>' +
       '<div class="card" style="margin-top:16px"><h3>🔭 Scouting — talents à découvrir</h3>' +
       '<p class="muted">Scoutez pour révéler le potentiel et les traits réels avant de signer.</p>' +
-      '<table><thead><tr><th>Poste</th><th>Nom</th><th class="num">Âge</th><th class="num">OVR/POT</th><th>Traits</th><th></th></tr></thead>' +
+      '<table class="stack-table"><thead><tr><th>Poste</th><th>Nom</th><th class="num">Âge</th><th class="num">OVR/POT</th><th>Traits</th><th></th></tr></thead>' +
       '<tbody>' + scout + '</tbody></table></div>';
   }
 
@@ -477,12 +477,12 @@
     var offers = (G.offers || []).map(function (o) {
       var p = LM.myTeam(G).roster.find(function (x) { return x.id === o.playerId; });
       if (!p) return "";
-      return '<tr><td>' + roleTag(p.role) + '</td><td><b>' + esc(p.name) + '</b> ' + ovrTag(p.ovr) + '</td>' +
-        '<td>' + G.teams[o.fromTeam].flag + ' ' + esc(G.teams[o.fromTeam].short) + '</td>' +
-        '<td class="num gold">' + LM.U.money(o.fee) + '</td>' +
-        '<td><button class="btn sm primary" data-action="accept-bid" data-id="' + o.id + '">Vendre</button> ' +
+      return '<tr><td data-label="Poste">' + roleTag(p.role) + '</td><td data-label="Joueur"><b>' + esc(p.name) + '</b> ' + ovrTag(p.ovr) + '</td>' +
+        '<td data-label="De">' + G.teams[o.fromTeam].flag + ' ' + esc(G.teams[o.fromTeam].short) + '</td>' +
+        '<td data-label="Montant" class="num gold">' + LM.U.money(o.fee) + '</td>' +
+        '<td data-label="Action" class="action-cell"><button class="btn sm primary" data-action="accept-bid" data-id="' + o.id + '">Vendre</button> ' +
         '<button class="btn sm" data-action="reject-bid" data-id="' + o.id + '">Refuser</button></td></tr>';
-    }).join("") || '<tr><td colspan="5" class="muted">Aucune offre en cours.</td></tr>';
+    }).join("") || '<tr><td data-label="Offres" colspan="5" class="muted">Aucune offre en cours.</td></tr>';
 
     return '<div class="page-head"><h1>Direction du club</h1></div>' +
       '<div class="grid cols-2"><div class="card"><h3>Confiance de la direction</h3>' +
@@ -494,7 +494,7 @@
       (b.seasonObjective ? '<div class="news"><div class="t">Saison</div><div class="b">' + esc(b.seasonObjective.desc) + '</div></div>' : '') +
       '</div>' +
       '<div class="card"><h3>💼 Offres reçues pour vos joueurs</h3>' +
-      '<table><thead><tr><th>Poste</th><th>Joueur</th><th>De</th><th class="num">Montant</th><th></th></tr></thead>' +
+      '<table class="stack-table"><thead><tr><th>Poste</th><th>Joueur</th><th>De</th><th class="num">Montant</th><th></th></tr></thead>' +
       '<tbody>' + offers + '</tbody></table></div></div>';
   }
 
@@ -558,7 +558,7 @@
           '<td>' + (c ? '<b>' + esc(c) + '</b> ' + clsTag(LM.CLS[c]) : '<span class="muted">…</span>') + '</td></tr>';
       }).join("");
       var bansTxt = bans.length ? bans.map(function (b) { return '<span class="chip" style="opacity:.6;text-decoration:line-through">' + esc(b) + '</span>'; }).join(" ") : '<span class="muted">—</span>';
-      return '<div class="card" style="' + (mine ? "border-color:var(--accent)" : "border-color:var(--red)") + '">' +
+      return '<div class="card ' + (mine ? "draft-panel-player" : "draft-panel-enemy") + '">' +
         '<h3>' + label + ' — ' + t.flag + ' ' + esc(t.short) + '</h3>' +
         '<table><tbody>' + rows + '</tbody></table>' +
         '<div style="margin-top:8px"><span class="muted" style="font-size:12px">Bans :</span> ' + bansTxt + '</div></div>';
@@ -580,13 +580,13 @@
         (draft.bans.A.length + 1) + '/3)</h3>' +
         '<p class="muted">Bannissez les champions forts ou maîtrisés par l\'adversaire. ' +
         'Indices : tier méta + maîtrise du joueur en face.</p>' +
-        '<table class="row-hover"><thead><tr><th>Champion</th><th>Classe</th><th class="num">Méta</th>' +
+        '<table class="row-hover stack-table"><thead><tr><th>Champion</th><th>Classe</th><th class="num">Méta</th>' +
         '<th class="num">Maîtrise adv.</th><th>Poste</th><th></th></tr></thead><tbody>' +
         recs.map(function (b) {
-          return '<tr><td><b>' + esc(b.champ) + '</b></td><td>' + clsTag(b.cls) + '</td>' +
-            '<td class="num">' + LM.Meta.tierLetter(b.meta) + '</td>' +
-            '<td class="num">' + b.mastery + '</td><td>' + roleTag(b.role) + '</td>' +
-            '<td><button class="btn sm danger" data-action="ban" data-champ="' + esc(b.champ) + '">Bannir</button></td></tr>';
+          return '<tr><td data-label="Champion"><b>' + esc(b.champ) + '</b></td><td data-label="Classe">' + clsTag(b.cls) + '</td>' +
+            '<td data-label="Méta" class="num">' + LM.Meta.tierLetter(b.meta) + '</td>' +
+            '<td data-label="Maîtrise adv." class="num">' + b.mastery + '</td><td data-label="Poste">' + roleTag(b.role) + '</td>' +
+            '<td data-label="Action" class="action-cell"><button class="btn sm danger" data-action="ban" data-champ="' + esc(b.champ) + '">Bannir</button></td></tr>';
         }).join("") + '</tbody></table>' +
         '<div style="margin-top:10px"><button class="btn sm" data-action="ban-skip">Passer ce ban</button></div></div>';
     } else if (draft.phase === "PICK") {
@@ -597,15 +597,15 @@
         (p ? esc(p.name) : "") + ')</h3>' +
         '<p class="muted">Triés par pertinence : méta forte, bonne maîtrise et contre de la compo adverse. ' +
         '★ = champion du pool du joueur.</p>' +
-        '<table class="row-hover"><thead><tr><th>Champion</th><th>Classe</th><th class="num">Méta</th>' +
+        '<table class="row-hover stack-table"><thead><tr><th>Champion</th><th>Classe</th><th class="num">Méta</th>' +
         '<th class="num">Maîtrise</th><th class="num">Note</th><th></th></tr></thead><tbody>' +
         recs2.map(function (rc) {
           var star = (p && p.champs.indexOf(rc.champ) >= 0) ? "★ " : "";
-          return '<tr><td>' + star + '<b>' + esc(rc.champ) + '</b></td><td>' + clsTag(rc.cls) + '</td>' +
-            '<td class="num">' + LM.Meta.tierLetter(rc.meta) + '</td>' +
-            '<td class="num">' + rc.mastery + '</td>' +
-            '<td class="num">' + (rc.score >= 0 ? "+" : "") + rc.score.toFixed(1) + '</td>' +
-            '<td><button class="btn sm primary" data-action="pick" data-champ="' + esc(rc.champ) + '">Choisir</button></td></tr>';
+          return '<tr><td data-label="Champion">' + star + '<b>' + esc(rc.champ) + '</b></td><td data-label="Classe">' + clsTag(rc.cls) + '</td>' +
+            '<td data-label="Méta" class="num">' + LM.Meta.tierLetter(rc.meta) + '</td>' +
+            '<td data-label="Maîtrise" class="num">' + rc.mastery + '</td>' +
+            '<td data-label="Note" class="num">' + (rc.score >= 0 ? "+" : "") + rc.score.toFixed(1) + '</td>' +
+            '<td data-label="Action" class="action-cell"><button class="btn sm primary" data-action="pick" data-champ="' + esc(rc.champ) + '">Choisir</button></td></tr>';
         }).join("") + '</tbody></table></div>';
     }
     return head + draftPanels(draft) + '<div style="margin-top:16px">' + panel + '</div>';
@@ -626,14 +626,14 @@
 
   function ratingBox(label, r) {
     function sgn(v) { return (v >= 0 ? "+" : "") + v.toFixed(1); }
-    return '<div class="card"><h3>' + label + '</h3>' +
+    return '<div class="analysis-box"><h3>' + label + '</h3>' +
       '<div class="kpi"><div class="k"><div class="v">' + Math.round(r.power) + '</div><div class="l">Puissance</div></div>' +
       '<div class="k"><div class="v">' + sgn(r.comp) + '</div><div class="l">Compo</div></div>' +
       '<div class="k"><div class="v" style="color:' + (r.counter >= 0 ? "var(--green)" : "var(--red)") + '">' +
       sgn(r.counter) + '</div><div class="l">Contres</div></div></div>' +
       '<table style="margin-top:8px"><tbody>' + r.roleDetail.map(function (d) {
         return '<tr><td>' + roleTag(d.role) + '</td><td><b>' + esc(d.champ) + '</b> ' + clsTag(d.cls) + '</td>' +
-          '<td class="num muted">M ' + d.mastery + '</td><td class="num muted">Méta ' + LM.Meta.tierLetter(d.meta) + '</td></tr>';
+      '<td class="num muted">M ' + d.mastery + '</td><td class="num muted">Méta ' + LM.Meta.tierLetter(d.meta) + '</td></tr>';
       }).join("") + '</tbody></table></div>';
   }
 
