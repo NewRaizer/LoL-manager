@@ -16,19 +16,25 @@
     if (!p) return { ok: false, msg: "Joueur introuvable." };
     if (G.trainingUsed[playerId]) return { ok: false, msg: p.name + " s'est déjà entraîné ce tour-ci." };
     if (!Tr.ATTRS[attr]) return { ok: false, msg: "Attribut inconnu." };
+    if (p.injury) return { ok: false, msg: p.name + " est blessé (" + p.injury.type + ")." };
     if (p.condition < 25) return { ok: false, msg: p.name + " est trop fatigué pour s'entraîner." };
 
     var rng = LM.RNG((parseInt(p.id, 36) ^ G.date.day ^ G.date.month) >>> 0);
-    // Gain : meilleures infrastructures + jeunesse = progression plus rapide.
+    var intensity = my.intensity || 2;
+    // Gain : infrastructures + coach + jeunesse + traits.
     var youth = LM.U.clamp(26 - p.age, 0, 8);
     var head = Math.max(0, p.potential - p.ovr);
     var gain = 0;
-    var chance = 0.35 + my.facilities * 0.05 + youth * 0.03 + (head > 0 ? 0.15 : 0);
+    var chance = (0.30 + my.facilities * 0.05 + youth * 0.03 + (head > 0 ? 0.15 : 0)) * LM.Club.coachMult(my);
+    chance += (intensity - 2) * 0.08;
+    if (LM.hasTrait(p, "PRODIGY")) chance += 0.15;
+    if (LM.hasTrait(p, "WORKHORSE")) chance += 0.10;
+    if (LM.hasTrait(p, "LAZY")) chance -= 0.15;
     if (rng() < chance && p.attrs[attr] < 99 && head >= 0) {
-      gain = 1 + (rng() < 0.2 ? 1 : 0);
+      gain = 1 + ((rng() < (LM.hasTrait(p, "PRODIGY") ? 0.35 : 0.18)) ? 1 : 0);
       p.attrs[attr] = LM.U.clamp(p.attrs[attr] + gain, 30, 99);
     }
-    p.condition = LM.U.clamp(p.condition - 6, 0, 100);
+    p.condition = LM.U.clamp(p.condition - (4 + intensity * 1.5), 0, 100);
     p.morale = LM.U.clamp(p.morale + 1, 0, 100);
     var oldOvr = p.ovr;
     p.ovr = LM.computeOVR(p);

@@ -65,5 +65,72 @@
     return { ok: true, msg: p.name + " a quitté l'équipe (+" + LM.U.money(fee) + ")." };
   };
 
+  // -------- Offres entrantes (l'IA veut vos joueurs) --------
+  T.generateBids = function (G) {
+    var my = LM.myTeam(G);
+    var rng = LM.RNG((G.seed ^ G.date.year ^ G.date.month ^ G.patchNote) >>> 0);
+    var targets = my.roster.slice().sort(function (a, b) { return b.value - a.value; }).slice(0, 4);
+    targets.forEach(function (p) {
+      if (rng() > 0.33) return;
+      var buyers = Object.keys(G.teams).filter(function (t) { return t !== my.id; });
+      var fromId = LM.U.pick(rng, buyers);
+      var from = G.teams[fromId];
+      var fee = Math.round(p.value * (0.9 + rng() * 0.8) / 1000) * 1000;
+      if (from.budget < fee) return;
+      if (G.offers.some(function (o) { return o.playerId === p.id && o.fromTeam === fromId; })) return;
+      var off = { id: LM.U.uid(), playerId: p.id, playerName: p.name, fromTeam: fromId, fee: fee };
+      G.offers.push(off);
+      LM.addNews(G, "💼 Offre pour " + p.name,
+        from.name + " propose " + LM.U.money(fee) + " pour " + p.name + " (" + LM.ROLE_FR[p.role] +
+        "). Acceptez ou refusez dans l'onglet Transferts.");
+    });
+    if (G.offers.length > 12) G.offers = G.offers.slice(-12);
+  };
+
+  T.acceptBid = function (G, offerId) {
+    var my = LM.myTeam(G);
+    var off = G.offers.find(function (o) { return o.id === offerId; });
+    if (!off) return { ok: false, msg: "Offre expirée." };
+    var p = my.roster.find(function (x) { return x.id === off.playerId; });
+    if (!p) { G.offers = G.offers.filter(function (o) { return o.id !== offerId; }); return { ok: false, msg: "Joueur introuvable." }; }
+    var from = G.teams[off.fromTeam];
+    my.roster = my.roster.filter(function (x) { return x.id !== p.id; });
+    my.budget += off.fee;
+    from.budget = Math.max(0, from.budget - off.fee);
+    p.teamId = from.id; p.contract = 3;
+    from.roster.push(p);
+    G.offers = G.offers.filter(function (o) { return o.playerId !== p.id; });
+    LM.addNews(G, "Vente : " + p.name + " → " + from.name,
+      p.name + " est vendu à " + from.name + " pour " + LM.U.money(off.fee) + ".");
+    return { ok: true, msg: p.name + " vendu pour " + LM.U.money(off.fee) + " !" };
+  };
+
+  T.rejectBid = function (G, offerId) {
+    G.offers = G.offers.filter(function (o) { return o.id !== offerId; });
+    return { ok: true, msg: "Offre refusée." };
+  };
+
+  // -------- Prolongation de contrat --------
+  T.renew = function (G, playerId, years) {
+    var my = LM.myTeam(G);
+    var p = my.roster.find(function (x) { return x.id === playerId; });
+    if (!p) return { ok: false, msg: "Joueur introuvable." };
+    years = LM.U.clamp(years || 1, 1, 3);
+    var mult = 0.5 * years;
+    if (LM.hasTrait(p, "AMBITIOUS")) mult *= 1.4;
+    if (LM.hasTrait(p, "LOYAL")) mult *= 0.7;
+    mult *= 1 + Math.max(0, p.ambition - 60) * 0.01;
+    var cost = Math.round(p.salary * mult / 1000) * 1000;
+    if (my.budget < cost) return { ok: false, msg: "Budget insuffisant (" + LM.U.money(cost) + " de prime requise)." };
+    my.budget -= cost;
+    p.contract = LM.U.clamp((p.contract || 0) + years, 1, 4);
+    // Légère hausse de salaire (revalorisation).
+    p.salary = Math.round(p.salary * (1 + 0.05 * years) / 1000) * 1000;
+    p.morale = LM.U.clamp(p.morale + 8, 0, 100);
+    LM.addNews(G, "Prolongation : " + p.name,
+      p.name + " prolonge de " + years + " an(s). Prime : " + LM.U.money(cost) + ".");
+    return { ok: true, msg: p.name + " prolongé jusqu'à " + p.contract + " an(s) de contrat." };
+  };
+
   LM.Transfers = T;
 })(window.LM = window.LM || {});

@@ -60,6 +60,16 @@ Le **draft est le cœur du jeu** : un bon draft peut battre une équipe plus for
 
 Après chaque match, l'écran **« Analyse du draft »** te montre pourquoi tu as gagné ou perdu (puissance, bonus de compo, bonus/malus de contres).
 
+## 🧠 Profondeur de management (façon Football Manager)
+
+- **Direction & objectifs** : le board te fixe un **objectif par split** et un **objectif de saison**, et entretient une **jauge de confiance**. Tu remplis → confiance + budget ; tu échoues → avertissement, puis **licenciement** (fin de partie).
+- **Traits de personnalité** : chaque joueur a des traits aux **effets réels** — 🧊 Clutch / 😰 Sous pression (gros matchs), 🧭 Leader (moral d'équipe + bonus draft), 🎓 Mentor, 🌟 Prodige, 💪 Bourreau de travail, 🩹 Fragile, 😴 Nonchalant, 🔥 Tête brûlée, 🤝 Loyal, 🚀 Ambitieux. Le **psychologue** peut faire disparaître un trait négatif.
+- **Entraînement avancé** : règle l'**intensité** (gains ↑ mais fatigue & blessures ↑), entraîne attributs **ou** maîtrise d'un champion, et améliore ton **staff** (coach, médical, analyste, psychologue) qui influence gains, blessures, draft et moral.
+- **Mentorat** : associe un vétéran (idéalement 🎓 Mentor) à un jeune pour le faire **progresser passivement**.
+- **Blessures & surmenage** : la fatigue accumulée provoque des **blessures** (joueur indisponible plusieurs semaines) et du **burnout** si moral + condition s'effondrent. D'où l'intérêt d'avoir de la **profondeur d'effectif**.
+- **Transferts enrichis** : achète/vends sur le marché, reçois des **offres de l'IA** pour tes joueurs (à accepter/refuser), **prolonge les contrats** (sinon départ libre en fin de contrat), et gère ta **masse salariale** payée chaque saison (avec revenus sponsors).
+- **Scouting & Académie** : ton **centre de formation** sort de jeunes talents chaque intersaison (à **promouvoir**), et tu peux **scouter** des prospects (révéler potentiel & traits) avant de les **signer**.
+
 ## 🗂️ Structure du projet (pour modifier le jeu)
 
 ```
@@ -67,8 +77,11 @@ index.html              ← le fichier à ouvrir
 css/style.css           ← thème graphique
 js/data/champions.js    ← champions Riot + leur classe (Tank/Mage/…)
 js/data/leagues.js      ← ÉQUIPES & JOUEURS (modifie ici pour mettre à jour les rosters)
+js/data/traits.js       ← traits de personnalité et leurs effets
 js/core/meta.js         ← méta/patchs, contres, valeur de draft
 js/core/draft.js        ← draft pick & ban + IA adverse
+js/core/board.js        ← direction : objectifs & confiance
+js/core/club.js         ← staff, blessures, scouting, académie, mentorat
 js/core/                ← moteur (simulation, calendrier, transferts, entraînement, sauvegarde)
 js/ui/app.js            ← interface
 ```

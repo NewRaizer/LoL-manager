@@ -66,8 +66,11 @@
     // Nouveau patch à chaque split : la méta change, à vous d'adapter vos drafts.
     G.patchNote++;
     LM.Meta.repatch(G);
+    LM.Board.setSplitObjective(G, def.name);
+    LM.Transfers.generateBids(G);
     LM.addNews(G, def.name + " — c'est parti !",
-      "Le " + def.name + " commence. " + rounds.length + " journées de saison régulière vous attendent.");
+      "Le " + def.name + " commence. " + rounds.length + " journées de saison régulière vous attendent. " +
+      "Objectif de la direction : " + G.board.splitObjective.desc + ".");
   }
 
   // Série du joueur dans le tour courant (ou null s'il n'est pas concerné).
@@ -247,6 +250,7 @@
       st.third = bracketThird(br);
       G.season.splitResults[st.key] = { champion: st.champion, runnerUp: st.runnerUp, third: st.third, league: st.league };
       awardSplitTitle(G, st);
+      LM.Board.evaluateSplit(G, st);
       nextStage(G);
     } else {
       finishIntl(G, st, log);
@@ -288,8 +292,10 @@
     LM.addNews(G, def.name + " — Qualifiés",
       def.name + " réunit " + qualified.length + " équipes : " +
       qualified.map(function (id) { return G.teams[id].short; }).join(", ") + ".");
-    if (qualified.indexOf(G.teamId) >= 0)
+    if (qualified.indexOf(G.teamId) >= 0) {
+      LM.Board.noteIntlQualification(G);
       LM.addNews(G, "Vous êtes qualifié !", "Votre équipe participe au " + def.name + " ! 🌍");
+    }
   }
 
   function qualifyTeams(G, def) {
@@ -344,40 +350,86 @@
     G.date.day += 7;
     while (G.date.day > 28) { G.date.day -= 28; G.date.month++; }
     while (G.date.month > 12) { G.date.month -= 12; G.date.year++; }
-    // Récupération de condition entre les matchs.
+    // Récupération de condition entre les matchs (le médical accélère).
     Object.keys(G.teams).forEach(function (tid) {
-      G.teams[tid].roster.forEach(function (p) {
-        p.condition = LM.U.clamp(p.condition + 8, 0, 100);
+      var team = G.teams[tid];
+      var rec = 5 + (LM.Club ? (team.staff ? team.staff.medic : 5) - 5 : 0) * 0.6;
+      var pm = (tid === G.teamId && LM.Club) ? LM.Club.psychoMorale(team) * 0.25 : 0;
+      team.roster.forEach(function (p) {
+        p.condition = LM.U.clamp(p.condition + rec, 0, 100);
+        p.morale = LM.U.clamp(p.morale + 1 + pm, 0, 100);
       });
     });
+    LM.Club.tickInjuries(G);
+    LM.Club.applyMentorship(G);
     G.trainingUsed = {};
   }
 
   function offseason(G) {
     var year = G.season.year;
+    LM.Board.evaluateSeason(G);
     LM.addNews(G, "Intersaison " + year,
-      "La saison " + year + " est terminée ! Les joueurs vieillissent, progressent et les contrats évoluent.");
+      "La saison " + year + " est terminée ! Bilan financier, vieillissement et fins de contrat.");
     Object.keys(G.teams).forEach(function (tid) {
       G.teams[tid].roster.forEach(function (p) { agePlayer(G, p); });
     });
     G.freeAgents.forEach(function (p) { agePlayer(G, p); });
-    // Nouveaux talents sur le marché.
+    // Vieillissement des jeunes (académie + scouting).
+    var my = LM.myTeam(G);
+    (my.academy.prospects || []).forEach(function (p) { agePlayer(G, p); });
+    (G.scoutPool || []).forEach(function (p) { agePlayer(G, p); });
+
     var rng = LM.RNG((G.seed ^ year) >>> 0);
+    finances(G, my, year);
+    contractExpiries(G, my);
+    LM.Club.academyIntake(G, rng);
+    LM.Club.refreshScoutPool(G, rng);
+    // Nouveaux talents sur le marché + offres entrantes.
     G.freeAgents = G.freeAgents.concat(LM.genFreeAgents(rng)).slice(-40);
+
     G.history.push({ year: year, results: G.season.splitResults });
     G.date.year = year + 1; G.date.month = 1; G.date.day = 6;
     G.patchNote++;
+    LM.Board.setSeasonObjective(G);
     LM.Calendar.startSeason(G);
+  }
+
+  // Bilan financier annuel : salaires versés + revenus sponsors.
+  function finances(G, my, year) {
+    var wages = my.roster.reduce(function (s, p) { return s + (p.salary || 0); }, 0);
+    var sponsor = 1200000 + my.tier * 22000 + (G.board ? G.board.confidence * 8000 : 0);
+    my.budget = Math.max(0, my.budget - wages + sponsor);
+    LM.addNews(G, "Bilan financier " + year,
+      "Salaires versés : -" + LM.U.money(wages) + " · Revenus sponsors : +" + LM.U.money(sponsor) +
+      ". Budget actuel : " + LM.U.money(my.budget) + ".");
+  }
+
+  // Fins de contrat : les joueurs non prolongés quittent le club.
+  function contractExpiries(G, my) {
+    var leaving = my.roster.filter(function (p) { return (p.contract || 0) <= 0; });
+    leaving.forEach(function (p) {
+      // Ne pas vider totalement un poste : on garde au moins un joueur par rôle.
+      var sameRole = my.roster.filter(function (x) { return x.role === p.role; });
+      if (sameRole.length <= 1) { p.contract = 1; return; } // prolongation d'office d'un an
+      my.roster = my.roster.filter(function (x) { return x.id !== p.id; });
+      p.teamId = null;
+      G.freeAgents.unshift(p);
+      LM.addNews(G, "Fin de contrat : " + p.name,
+        p.name + " arrive en fin de contrat et quitte le club faute de prolongation.");
+    });
   }
 
   function agePlayer(G, p) {
     p.age++;
     var rng = LM.RNG((parseInt(p.id, 36) ^ G.date.year) >>> 0);
     var dir;
-    if (p.age <= 23 && p.ovr < p.potential) dir = LM.U.rint(rng, 0, 3);       // progression
-    else if (p.age >= 28) dir = -LM.U.rint(rng, 0, 2);                         // déclin
+    if (p.age <= 23 && p.ovr < p.potential) {
+      dir = LM.U.rint(rng, 0, 3);                                             // progression
+      if (LM.hasTrait(p, "PRODIGY")) dir += 1;
+      if (LM.hasTrait(p, "WORKHORSE")) dir += 1;
+      if (LM.hasTrait(p, "LAZY")) dir -= 1;
+    } else if (p.age >= 28) dir = -LM.U.rint(rng, 0, 2);                       // déclin
     else dir = LM.U.rint(rng, -1, 1);
-    LM.ROLES.length; // noop
     for (var k in p.attrs) p.attrs[k] = LM.U.clamp(p.attrs[k] + dir + LM.U.rint(rng, -1, 1), 30, 99);
     p.ovr = LM.computeOVR(p);
     p.value = LM.playerValue(p);

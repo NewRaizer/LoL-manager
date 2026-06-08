@@ -4,24 +4,29 @@
 (function (LM) {
   var Sim = {};
 
-  // Renvoie le 5 titulaire d'une équipe : meilleur joueur par rôle.
+  // Renvoie le 5 titulaire d'une équipe : meilleur joueur DISPONIBLE par rôle.
   Sim.lineup = function (team) {
     var line = {};
     LM.ROLES.forEach(function (r) {
-      var cands = team.roster.filter(function (p) { return p.role === r; });
+      var cands = team.roster.filter(function (p) { return p.role === r && !p.injury; });
       cands.sort(function (a, b) { return b.ovr - a.ovr; });
       line[r] = cands[0] || null;
     });
     return line;
   };
 
-  // Note effective d'un joueur sur un match (OVR + forme + moral + condition).
+  // Note effective d'un joueur sur un match (OVR + forme + moral + condition + traits).
   Sim.effective = function (p) {
-    if (!p) return 40;
+    if (!p) return 38; // poste laissé vacant (tous blessés) -> grosse faiblesse
     var f = p.form * 1.4;
     var m = (p.morale - 70) * 0.08;
     var c = (p.condition - 80) * 0.10;
-    return p.ovr + f + m + c;
+    var t = 0;
+    if (Sim._ctx && Sim._ctx.big) {
+      if (LM.hasTrait(p, "CLUTCH")) t += 4;
+      if (LM.hasTrait(p, "PRESSURE")) t -= 4;
+    }
+    return p.ovr + f + m + c + t;
   };
 
   // Puissance d'une équipe à partir de son line-up + bonus draft.
@@ -90,6 +95,9 @@
   // drafts : { teamId: picks } pour forcer la draft d'une équipe (sinon auto).
   Sim.series = function (G, homeId, awayId, bo, drafts) {
     drafts = drafts || {};
+    // Contexte : les gros matchs (playoffs / international) activent les traits Clutch / Pression.
+    var st = G.season && G.season.stage;
+    Sim._ctx = { big: !!(st && (st.type === "intl" || (st.type === "split" && st.phase === "PO"))) };
     var rng = LM.RNG((G.seed ^ Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0);
     var home = G.teams[homeId], away = G.teams[awayId];
     var need = Math.ceil(bo / 2);
@@ -117,19 +125,28 @@
 
   // Met à jour les statistiques des joueurs après une série.
   Sim.applyStats = function (G, res) {
-    [res.homeId, res.awayId].forEach(function (tid, i) {
+    [res.homeId, res.awayId].forEach(function (tid) {
       var team = G.teams[tid];
       var won = res.winnerId === tid;
       var line = Sim.lineup(team);
+      var hasLeader = LM.ROLES.some(function (r) { return line[r] && LM.hasTrait(line[r], "LEADER"); });
+      var intensity = team.intensity || 2;
+      var starters = [];
       LM.ROLES.forEach(function (r) {
         var p = line[r]; if (!p) return;
+        starters.push(p);
         p.stats.games += res.games.length;
         if (won) p.stats.wins += res.games.length;
-        // Forme & condition évoluent légèrement.
-        p.condition = LM.U.clamp(p.condition - res.games.length * 2 - (won ? 0 : 1), 40, 100);
+        // Condition : usure proportionnelle aux parties et à l'intensité.
+        var loss = res.games.length * (2.4 + intensity * 0.6);
+        p.condition = LM.U.clamp(p.condition - loss, 0, 100);
         p.form = LM.U.clamp(p.form + (won ? 1 : -1), -5, 5);
-        p.morale = LM.U.clamp(p.morale + (won ? 3 : -3), 20, 100);
+        var dm = won ? 3 : -3;
+        if (hasLeader) dm += won ? 1 : 2;                 // un leader soutient le moral
+        if (LM.hasTrait(p, "HOTHEAD")) dm *= 1.6;          // tête brûlée = moral instable
+        p.morale = LM.U.clamp(p.morale + dm, 15, 100);
       });
+      if (LM.Club) LM.Club.rollInjuries(G, team, starters, res.games.length);
     });
   };
 

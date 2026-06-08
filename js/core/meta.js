@@ -135,9 +135,13 @@
       return LM.CLS[enemyPicks[r]] || null; }).filter(Boolean) : null;
     var comp = Meta.compScore(types);
     var counter = Meta.counterScore(types, enemyTypes);
+    // Bonus d'équipe : analyste (staff) + présence d'un leader.
+    var teamBonus = LM.Club ? LM.Club.analystBonus(team) : 0;
+    var hasLeader = LM.ROLES.some(function (r) { return line[r] && LM.hasTrait(line[r], "LEADER"); });
+    if (hasLeader) teamBonus += 2.5;
     return {
-      power: base + comp + counter,
-      base: base, comp: comp, counter: counter,
+      power: base + comp + counter + teamBonus,
+      base: base, comp: comp, counter: counter, teamBonus: teamBonus,
       types: types, roleDetail: roleDetail
     };
   };

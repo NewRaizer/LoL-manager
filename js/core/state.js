@@ -50,6 +50,9 @@
       condition: 100,                    // condition physique (0-100)
       champs: champPool,                 // pool de champions favoris
       mastery: mastery,                  // maîtrise par champion
+      traits: LM.assignTraits(rng, ovrTmp, age),
+      injury: null,                      // {type, weeks} ou null
+      potentialKnown: true,
       teamId: null,
       stats: { games: 0, wins: 0, kills: 0, deaths: 0, assists: 0 }
     };
@@ -58,8 +61,11 @@
     p.value = playerValue(p);
     p.salary = Math.round(p.value * 0.18 / 1000) * 1000;
     p.contract = LM.U.rint(rng, 1, 3); // années restantes
+    p.ambition = LM.U.clamp(LM.U.rint(rng, 30, 75) + (LM.hasTrait(p, "AMBITIOUS") ? 22 : 0), 10, 99);
+    p.loyalty = LM.U.clamp(LM.U.rint(rng, 35, 75) + (LM.hasTrait(p, "LOYAL") ? 22 : 0), 10, 99);
     return p;
   }
+  LM.makePlayer = genPlayer;
 
   function playerValue(p) {
     var o = p.ovr;
@@ -113,8 +119,16 @@
       inbox: [],           // messages / actualités
       trainingUsed: {},    // joueurId -> bool (1 entraînement par étape)
       patchNote: 1,
-      meta: {}             // force méta par champion (rempli ci-dessous)
+      meta: {},            // force méta par champion (rempli ci-dessous)
+      offers: [],          // offres entrantes pour vos joueurs
+      scoutPool: [],       // jeunes talents à scouter
+      fired: false
     };
+    // Staff, académie et intensité pour chaque club.
+    Object.keys(teams).forEach(function (tid) { LM.Club.initTeam(G, teams[tid], rng); });
+    LM.Board.init(G);
+    LM.Board.setSeasonObjective(G);
+    LM.Club.refreshScoutPool(G, rng);
     LM.Meta.init(G);
     LM.Calendar.startSeason(G);
     LM.addNews(G, "Bienvenue", "Bienvenue " + G.manager + " ! Vous prenez la tête de " +
@@ -158,7 +172,37 @@
   LM.load = function () {
     var raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return null;
-    try { return JSON.parse(raw); } catch (e) { return null; }
+    try { return LM.migrate(JSON.parse(raw)); } catch (e) { return null; }
+  };
+
+  // Compatibilité : complète les sauvegardes d'anciennes versions.
+  LM.migrate = function (G) {
+    if (!G || !G.teams) return G;
+    if (!G.offers) G.offers = [];
+    if (!G.scoutPool) G.scoutPool = [];
+    if (typeof G.fired !== "boolean") G.fired = false;
+    var rng = LM.RNG((G.seed || 1) >>> 0);
+    Object.keys(G.teams).forEach(function (tid) {
+      var t = G.teams[tid];
+      if (!t.staff) LM.Club.initTeam(G, t, rng);
+      t.roster.forEach(fixPlayer);
+    });
+    (G.freeAgents || []).forEach(fixPlayer);
+    if (!G.meta || !Object.keys(G.meta).length) { G.meta = {}; LM.Meta.init(G); }
+    if (!G.board) {
+      LM.Board.init(G); LM.Board.setSeasonObjective(G);
+      if (G.season && G.season.stage && G.season.stage.type === "split")
+        LM.Board.setSplitObjective(G, G.season.stage.name);
+    }
+    return G;
+    function fixPlayer(p) {
+      if (!p.traits) p.traits = [];
+      if (p.injury === undefined) p.injury = null;
+      if (p.potentialKnown === undefined) p.potentialKnown = true;
+      if (p.ambition == null) p.ambition = 60;
+      if (p.loyalty == null) p.loyalty = 60;
+      if (!p.mastery) { p.mastery = {}; (p.champs || []).forEach(function (c) { p.mastery[c] = 70; }); }
+    }
   };
   LM.deleteSave = function () { localStorage.removeItem(SAVE_KEY); };
 

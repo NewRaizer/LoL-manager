@@ -34,7 +34,19 @@
   function render() {
     if (screen === "menu") { app().innerHTML = renderMenu(); return; }
     if (screen === "newgame") { app().innerHTML = renderNewGame(); return; }
+    if (G && G.fired) { app().innerHTML = renderFired(); return; }
     app().innerHTML = layout(renderScreen());
+  }
+
+  function renderFired() {
+    var my = LM.myTeam(G);
+    return '<div class="menu"><div class="logo" style="font-size:34px">Fin de l\'aventure</div>' +
+      '<p>La direction de ' + my.flag + ' ' + esc(my.name) + ' vous a limogé.</p>' +
+      '<div class="kpi" style="justify-content:center;margin:18px 0">' +
+      '<div class="k"><div class="v">' + my.trophies.length + '</div><div class="l">Trophées</div></div>' +
+      '<div class="k"><div class="v">' + G.history.length + '</div><div class="l">Saisons</div></div></div>' +
+      '<button class="btn primary big" data-action="to-menu">Retour au menu principal</button>' +
+      '<button class="btn big" data-action="export">⬇ Exporter la sauvegarde</button></div>';
   }
 
   // ---------- Menu ----------
@@ -96,6 +108,8 @@
       ["meta", "📊", "Méta"],
       ["transfers", "💸", "Transferts"],
       ["training", "🎯", "Entraînement"],
+      ["jeunes", "🎓", "Jeunes"],
+      ["direction", "📋", "Direction" + (G.offers && G.offers.length ? '<span class="badge">' + G.offers.length + '</span>' : "")],
       ["club", "🏟️", "Club & Palmarès"],
       ["inbox", "📨", "Messages" + (unread ? '<span class="badge">' + unread + '</span>' : "")]
     ];
@@ -123,6 +137,8 @@
       case "meta": return renderMeta();
       case "transfers": return renderTransfers();
       case "training": return renderTraining();
+      case "jeunes": return renderJeunes();
+      case "direction": return renderDirection();
       case "club": return renderClub();
       case "inbox": return renderInbox();
       case "match": return renderMatch();
@@ -166,13 +182,22 @@
           '</td></tr>'; }).join("") +
       '</tbody></table></div>';
 
+    var conf = G.board ? G.board.confidence : 60;
+    var confCol = conf >= 60 ? "var(--green)" : conf >= 30 ? "var(--gold)" : "var(--red)";
+    var obj = G.board && G.board.splitObjective ? G.board.splitObjective.desc : "";
+    var injured = my.roster.filter(function (p) { return p.injury; });
+    var injCard = injured.length ? '<div class="card" style="border-color:var(--red)"><h3>🩹 Infirmerie</h3>' +
+      injured.map(function (p) { return '<div style="padding:3px 0">' + roleTag(p.role) + ' <b>' + esc(p.name) +
+        '</b> — ' + esc(p.injury.type) + ' (' + p.injury.weeks + ' sem.)</div>'; }).join("") + '</div>' : "";
+
     return '<div class="page-head"><div><h1>' + esc(desc.title) + '</h1><div class="sub">' +
-      esc(desc.sub) + ' · ' + LM.U.fmtDate(G.date) + ' ' + G.date.year + '</div></div>' +
+      esc(desc.sub) + ' · ' + LM.U.fmtDate(G.date) + ' ' + G.date.year + (obj ? ' · 🎯 ' + esc(obj) : "") + '</div></div>' +
       '<div class="kpi"><div class="k"><div class="v">' + LM.U.money(my.budget) + '</div><div class="l">Budget</div></div>' +
+      '<div class="k"><div class="v" style="color:' + confCol + '">' + conf + '</div><div class="l">Confiance</div></div>' +
       '<div class="k"><div class="v">' + my.facilities + '/10</div><div class="l">Infrastructures</div></div>' +
       '<div class="k"><div class="v">' + my.trophies.length + '</div><div class="l">Trophées</div></div></div></div>' +
       '<div class="grid cols-2">' + matchCard + lineCard + '</div>' +
-      '<div style="margin-top:16px">' + logCard + '</div>';
+      '<div class="grid cols-2" style="margin-top:16px">' + logCard + injCard + '</div>';
   }
 
   // ---------- Effectif ----------
@@ -183,9 +208,10 @@
     var roster = my.roster.slice().sort(function (a, b) {
       return LM.ROLES.indexOf(a.role) - LM.ROLES.indexOf(b.role) || b.ovr - a.ovr; });
     var rows = roster.map(function (p) {
-      return '<tr class="' + (p.id === G.teamId ? "" : "") + '" data-action="player" data-id="' + p.id + '" style="cursor:pointer">' +
+      var tmini = (p.traits || []).map(function (k) { return LM.TRAITS[k] ? LM.TRAITS[k].emoji : ""; }).join("");
+      return '<tr data-action="player" data-id="' + p.id + '" style="cursor:pointer">' +
         '<td>' + roleTag(p.role) + (starters[p.id] ? ' <span class="chip" style="border-color:var(--accent);color:var(--accent)">Titulaire</span>' : '') + '</td>' +
-        '<td>' + p.nat + ' <b>' + esc(p.name) + '</b></td>' +
+        '<td>' + p.nat + ' <b>' + esc(p.name) + '</b> ' + tmini + (p.injury ? ' 🩹' : '') + '</td>' +
         '<td class="num">' + p.age + '</td>' +
         '<td class="num">' + ovrTag(p.ovr) + '</td>' +
         '<td class="num">' + ovrTag(p.potential) + '</td>' +
@@ -226,8 +252,12 @@
       return '<option value="' + esc(c) + '">' + esc(c) + ' — ' + LM.CLASSES[LM.CLS[c]] +
         ' (méta ' + LM.Meta.tierLetter(LM.Meta.tier(G, c)) + ')</option>'; }).join("") + '</select>';
     return '<div class="page-head"><div><h1>' + p.nat + ' ' + esc(p.name) + ' ' + ovrTag(p.ovr) + '</h1>' +
-      '<div class="sub">' + LM.ROLE_FR[p.role] + ' · ' + p.age + ' ans · Potentiel ' + p.potential +
-      ' · Valeur ' + LM.U.money(p.value) + '</div></div>' +
+      '<div class="sub">' + LM.ROLE_FR[p.role] + ' · ' + p.age + ' ans · Potentiel ' +
+      (p.potentialKnown ? p.potential : "?") + ' · Valeur ' + LM.U.money(p.value) +
+      ' · Contrat ' + (p.contract || 0) + ' an(s) · Salaire ' + LM.U.money(p.salary) + '/an</div>' +
+      '<div style="margin-top:6px">' + (LM.traitBadges(p) || '<span class="muted" style="font-size:12px">Aucun trait marquant</span>') +
+      (p.injury ? ' <span class="chip" style="border-color:var(--red);color:var(--red)">🩹 ' + esc(p.injury.type) + ' (' + p.injury.weeks + " sem.)</span>" : "") +
+      '</div></div>' +
       '<button class="btn" data-action="nav" data-s="roster">← Effectif</button></div>' +
       '<div class="grid cols-2"><div class="card"><h3>Attributs</h3>' + bars +
       '<h3 style="margin-top:16px">État</h3>' +
@@ -241,6 +271,11 @@
       (trained ? "Fait" : "Attribut") + '</button></div>' +
       '<div style="display:flex;gap:8px;align-items:center">' + champSel +
       '<button class="btn" data-action="train-champ" data-id="' + p.id + '" ' + (trained ? "disabled" : "") + '>Champion</button></div>' +
+      '<h3 style="margin-top:16px">Contrat & mental</h3>' +
+      '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
+      '<select id="renewYears"><option value="1">+1 an</option><option value="2">+2 ans</option><option value="3">+3 ans</option></select>' +
+      '<button class="btn" data-action="renew" data-id="' + p.id + '">Prolonger</button>' +
+      '<button class="btn" data-action="work-trait" data-id="' + p.id + '" ' + (trained ? "disabled" : "") + '>🧠 Psychologue</button></div>' +
       '<div style="margin-top:14px"><button class="btn danger sm" data-action="release" data-id="' + p.id + '">Libérer / vendre le joueur</button></div>' +
       '</div></div>';
   }
@@ -352,19 +387,115 @@
       var trained = G.trainingUsed[p.id];
       var sel = '<select id="ta_' + p.id + '">' + Object.keys(attrs).map(function (k) {
         return '<option value="' + k + '">' + attrs[k] + '</option>'; }).join("") + '</select>';
+      var st = p.injury ? '<span class="chip" style="border-color:var(--red);color:var(--red)">🩹 blessé</span>' : (p.condition + "%");
       return '<tr><td>' + roleTag(p.role) + '</td><td>' + p.nat + ' <b>' + esc(p.name) + '</b></td>' +
         '<td class="num">' + ovrTag(p.ovr) + '→' + ovrTag(p.potential) + '</td>' +
-        '<td class="num">' + p.condition + '%</td>' +
+        '<td class="num">' + st + '</td>' +
         '<td style="min-width:160px">' + sel + '</td>' +
         '<td><button class="btn sm primary" data-action="train-row" data-id="' + p.id + '" ' +
-        (trained ? "disabled" : "") + '>' + (trained ? "✓" : "Entraîner") + '</button></td></tr>';
+        (trained || p.injury ? "disabled" : "") + '>' + (trained ? "✓" : "Entraîner") + '</button></td></tr>';
     }).join("");
-    return '<div class="page-head"><div><h1>Entraînement</h1>' +
-      '<div class="sub">1 séance par joueur et par tour. Infrastructures : <b>' + my.facilities + '/10</b></div></div>' +
-      '<button class="btn gold" data-action="upgrade">⬆ Améliorer les infrastructures (' +
-      LM.U.money(my.facilities * 250000) + ')</button></div>' +
+
+    // Staff
+    var staff = Object.keys(LM.Club.STAFF).map(function (k) {
+      var lvl = my.staff[k], cost = lvl * 200000;
+      return '<tr><td>' + LM.Club.STAFF[k] + '</td><td class="num">' + lvl + '/10</td>' +
+        '<td><button class="btn sm" data-action="upg-staff" data-key="' + k + '" ' +
+        (lvl >= 10 || my.budget < cost ? "disabled" : "") + '>' + (lvl >= 10 ? "Max" : "⬆ " + LM.U.money(cost)) + '</button></td></tr>';
+    }).join("");
+    var intens = [[1, "Léger"], [2, "Normal"], [3, "Intensif"]].map(function (o) {
+      return '<div class="pill ' + (my.intensity === o[0] ? "active" : "") + '" data-action="set-intensity" data-v="' + o[0] + '">' + o[1] + '</div>';
+    }).join("");
+
+    // Mentorat
+    var ment = (my.mentorships || []).map(function (m) {
+      var me = my.roster.find(function (x) { return x.id === m.mentorId; });
+      var yo = my.roster.find(function (x) { return x.id === m.menteeId; });
+      if (!me || !yo) return "";
+      return '<tr><td>' + esc(me.name) + ' 🎓</td><td>→ ' + esc(yo.name) + '</td>' +
+        '<td><button class="btn sm danger" data-action="clear-mentor" data-id="' + yo.id + '">×</button></td></tr>';
+    }).join("");
+    var opts = my.roster.map(function (p) { return '<option value="' + p.id + '">' + esc(p.name) + ' (' + p.age + ' ans)</option>'; }).join("");
+
+    return '<div class="page-head"><div><h1>Entraînement & Staff</h1>' +
+      '<div class="sub">1 séance par joueur et par tour. Infrastructures <b>' + my.facilities + '/10</b> · Intensité ↑ = gains ↑ mais fatigue & blessures ↑</div></div>' +
+      '<button class="btn gold" data-action="upgrade">⬆ Infrastructures (' + LM.U.money(my.facilities * 250000) + ')</button></div>' +
+      '<div class="card" style="margin-bottom:16px"><h3>Intensité d\'entraînement</h3><div class="leaguetabs">' + intens + '</div></div>' +
       '<div class="card"><table><thead><tr><th>Poste</th><th>Joueur</th><th class="num">OVR/POT</th>' +
-      '<th class="num">Cond.</th><th>Attribut</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+      '<th class="num">Cond.</th><th>Attribut</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      '<div class="grid cols-2" style="margin-top:16px">' +
+      '<div class="card"><h3>Staff technique</h3><table><tbody>' + staff + '</tbody></table></div>' +
+      '<div class="card"><h3>Mentorat (progression passive des jeunes)</h3>' +
+      '<table><tbody>' + (ment || '<tr><td class="muted">Aucun binôme.</td></tr>') + '</tbody></table>' +
+      '<div style="display:flex;gap:6px;align-items:center;margin-top:10px;flex-wrap:wrap">' +
+      '<select id="mentorSel" style="flex:1">' + opts + '</select><span>encadre</span>' +
+      '<select id="menteeSel" style="flex:1">' + opts + '</select>' +
+      '<button class="btn sm primary" data-action="set-mentor">OK</button></div>' +
+      '<p class="muted" style="font-size:12px;margin-top:6px">Un mentor avec le trait 🎓 Mentor est bien plus efficace.</p></div></div>';
+  }
+
+  // ---------- Jeunes (académie + scouting) ----------
+  function renderJeunes() {
+    var my = LM.myTeam(G);
+    var acad = (my.academy.prospects || []).map(function (p) {
+      return '<tr><td>' + roleTag(p.role) + '</td><td><b>' + esc(p.name) + '</b></td>' +
+        '<td class="num">' + p.age + '</td><td class="num">' + ovrTag(p.ovr) + '→' + ovrTag(p.potential) + '</td>' +
+        '<td>' + LM.traitBadges(p) + '</td>' +
+        '<td><button class="btn sm primary" data-action="promote" data-id="' + p.id + '">Promouvoir</button> ' +
+        '<button class="btn sm danger" data-action="release-prospect" data-id="' + p.id + '">×</button></td></tr>';
+    }).join("") || '<tr><td colspan="6" class="muted">Aucun jeune. Améliorez l\'académie ; de nouveaux talents arrivent chaque intersaison.</td></tr>';
+
+    var scout = (G.scoutPool || []).slice().sort(function (a, b) {
+      return (b.potentialKnown ? b.potential : 0) - (a.potentialKnown ? a.potential : 0); }).map(function (p) {
+      var pot = p.potentialKnown ? (ovrTag(p.ovr) + '→' + ovrTag(p.potential)) : (ovrTag(p.ovr) + '→<span class="muted">?</span>');
+      var traits = p.potentialKnown ? LM.traitBadges(p) : '<span class="muted">non scouté</span>';
+      var fee = Math.round(p.value * 0.5) + 30000;
+      return '<tr><td>' + roleTag(p.role) + '</td><td><b>' + esc(p.name) + '</b></td><td class="num">' + p.age + '</td>' +
+        '<td class="num">' + pot + '</td><td>' + traits + '</td>' +
+        '<td>' + (p.potentialKnown ? "" : '<button class="btn sm" data-action="scout" data-id="' + p.id + '">🔭 Scouter (40 k€)</button> ') +
+        '<button class="btn sm primary" data-action="sign-prospect" data-id="' + p.id + '" ' +
+        (my.budget < fee ? "disabled" : "") + '>Signer ' + LM.U.money(fee) + '</button></td></tr>';
+    }).join("");
+
+    return '<div class="page-head"><div><h1>Jeunes & Scouting</h1>' +
+      '<div class="sub">Budget : <b style="color:var(--gold)">' + LM.U.money(my.budget) + '</b></div></div>' +
+      '<button class="btn gold" data-action="upgrade-academy">⬆ Académie niv. ' + my.academy.level + '/10 (' +
+      LM.U.money(my.academy.level * 300000) + ')</button></div>' +
+      '<div class="card"><h3>🎓 Académie — vos jeunes formés</h3><table><thead><tr><th>Poste</th><th>Nom</th>' +
+      '<th class="num">Âge</th><th class="num">OVR/POT</th><th>Traits</th><th></th></tr></thead><tbody>' + acad + '</tbody></table></div>' +
+      '<div class="card" style="margin-top:16px"><h3>🔭 Scouting — talents à découvrir</h3>' +
+      '<p class="muted">Scoutez pour révéler le potentiel et les traits réels avant de signer.</p>' +
+      '<table><thead><tr><th>Poste</th><th>Nom</th><th class="num">Âge</th><th class="num">OVR/POT</th><th>Traits</th><th></th></tr></thead>' +
+      '<tbody>' + scout + '</tbody></table></div>';
+  }
+
+  // ---------- Direction (board) ----------
+  function renderDirection() {
+    var b = G.board;
+    var conf = b.confidence;
+    var col = conf >= 60 ? "var(--green)" : conf >= 30 ? "var(--gold)" : "var(--red)";
+    var offers = (G.offers || []).map(function (o) {
+      var p = LM.myTeam(G).roster.find(function (x) { return x.id === o.playerId; });
+      if (!p) return "";
+      return '<tr><td>' + roleTag(p.role) + '</td><td><b>' + esc(p.name) + '</b> ' + ovrTag(p.ovr) + '</td>' +
+        '<td>' + G.teams[o.fromTeam].flag + ' ' + esc(G.teams[o.fromTeam].short) + '</td>' +
+        '<td class="num gold">' + LM.U.money(o.fee) + '</td>' +
+        '<td><button class="btn sm primary" data-action="accept-bid" data-id="' + o.id + '">Vendre</button> ' +
+        '<button class="btn sm" data-action="reject-bid" data-id="' + o.id + '">Refuser</button></td></tr>';
+    }).join("") || '<tr><td colspan="5" class="muted">Aucune offre en cours.</td></tr>';
+
+    return '<div class="page-head"><h1>Direction du club</h1></div>' +
+      '<div class="grid cols-2"><div class="card"><h3>Confiance de la direction</h3>' +
+      '<div style="font-size:46px;font-weight:900;color:' + col + '">' + conf + '<span style="font-size:18px">/100</span></div>' +
+      '<div class="bar" style="height:12px"><span style="width:' + conf + '%;background:' + col + '"></span></div>' +
+      (b.warned ? '<p style="color:var(--red);margin-top:10px">⚠️ Vous êtes sous pression : des résultats sont attendus.</p>' : '') +
+      '<h3 style="margin-top:16px">Objectifs</h3>' +
+      (b.splitObjective ? '<div class="news"><div class="t">Split en cours</div><div class="b">' + esc(b.splitObjective.desc) + '</div></div>' : '') +
+      (b.seasonObjective ? '<div class="news"><div class="t">Saison</div><div class="b">' + esc(b.seasonObjective.desc) + '</div></div>' : '') +
+      '</div>' +
+      '<div class="card"><h3>💼 Offres reçues pour vos joueurs</h3>' +
+      '<table><thead><tr><th>Poste</th><th>Joueur</th><th>De</th><th class="num">Montant</th><th></th></tr></thead>' +
+      '<tbody>' + offers + '</tbody></table></div></div>';
   }
 
   // ---------- Club & palmarès ----------
@@ -580,10 +711,24 @@
       case "release": {
         var rr = LM.Transfers.release(G, d.id); toast(rr.msg); if (rr.ok) { save(); nav("roster"); } break;
       }
-      case "upgrade": { var u = LM.Training.upgradeFacilities(G); toast(u.msg); if (u.ok) { save(); render(); } break; }
-
-      case "buy": { var b = LM.Transfers.buy(G, d.id); toast(b.msg); if (b.ok) { save(); render(); } break; }
+      case "upgrade": act(function () { return LM.Training.upgradeFacilities(G); }); break;
+      case "buy": act(function () { return LM.Transfers.buy(G, d.id); }); break;
       case "tr-role": params.role = d.r; render(); break;
+
+      case "upg-staff": act(function () { return LM.Club.upgradeStaff(G, d.key); }); break;
+      case "set-intensity": LM.Club.setIntensity(G, +d.v); save(); render(); break;
+      case "upgrade-academy": act(function () { return LM.Club.upgradeAcademy(G); }); break;
+      case "scout": act(function () { return LM.Club.scout(G, d.id); }); break;
+      case "sign-prospect": act(function () { return LM.Club.signProspect(G, d.id); }); break;
+      case "promote": act(function () { return LM.Club.promote(G, d.id); }); break;
+      case "release-prospect": act(function () { return LM.Club.releaseProspect(G, d.id); }); break;
+      case "set-mentor": act(function () {
+        return LM.Club.setMentorship(G, (document.getElementById("mentorSel") || {}).value, (document.getElementById("menteeSel") || {}).value); }); break;
+      case "clear-mentor": LM.Club.clearMentorship(G, d.id); save(); render(); break;
+      case "accept-bid": act(function () { return LM.Transfers.acceptBid(G, d.id); }); break;
+      case "reject-bid": act(function () { return LM.Transfers.rejectBid(G, d.id); }); break;
+      case "renew": act(function () { return LM.Transfers.renew(G, d.id, +((document.getElementById("renewYears") || {}).value || 1)); }); break;
+      case "work-trait": act(function () { return LM.Club.workOnTrait(G, d.id); }); break;
     }
   }
 
@@ -609,6 +754,12 @@
     nav("hub");
   }
 
+  // Exécute une action de gestion, affiche le message et rafraîchit si réussie.
+  function act(fn) {
+    var r = fn();
+    toast(r.msg); if (r.ok) { save(); render(); }
+  }
+
   function doTrain(id, attr) {
     var r = LM.Training.train(G, id, attr);
     toast(r.msg); if (r.ok) { save(); render(); }
@@ -629,7 +780,7 @@
     document.addEventListener("change", function (e) {
       if (e.target && e.target.id === "importfile" && e.target.files[0]) {
         LM.importSave(e.target.files[0], function (g) {
-          if (g && g.teams) { G = g; UI.G = G; LM.save(G); nav("hub"); toast("Sauvegarde importée !"); }
+          if (g && g.teams) { G = LM.migrate(g); UI.G = G; LM.save(G); nav("hub"); toast("Sauvegarde importée !"); }
           else toast("Fichier de sauvegarde invalide.");
         });
       }
