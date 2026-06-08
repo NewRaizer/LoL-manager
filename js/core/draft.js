@@ -61,7 +61,8 @@
     var mast = p ? LM.Meta.masteryDelta(p, champ) : 0;
     var cls = LM.CLS[champ] || "BRUISER";
     var counter = LM.Meta.counterScore([cls], enemyTypes(G, draft, side)) * 0.6;
-    return meta + mast + counter;
+    var w = LM.Story ? LM.Story.focusWeights(G, side) : { meta: 1, mastery: 1, counter: 1 };
+    return meta * w.meta + mast * w.mastery + counter * w.counter;
   };
 
   // Recommandations de pick (triées) pour l'UI joueur.

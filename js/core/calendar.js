@@ -110,8 +110,10 @@
     var log = [];
     if (st.type === "split" && st.phase === "RS") {
       advanceRSRound(G, st, playerRes, log);
+      if (playerRes && LM.Story) LM.Story.afterPlayerSeries(G, playerRes);
     } else if (st.bracket) {
       advanceBracketRound(G, st.bracket, playerRes, log);
+      if (playerRes && LM.Story) LM.Story.afterPlayerSeries(G, playerRes);
       if (st.bracket.done) finishBracket(G, st, log);
     }
     tickDay(G);
@@ -274,6 +276,7 @@
       G.teams[st.runnerUp].name + ". Prize money : " + LM.U.money(prize) + ".");
     if (st.champion === G.teamId)
       LM.addNews(G, "Félicitations !", "Votre équipe est championne du " + st.name + " ! 🎉");
+    if (st.champion === G.teamId && LM.Story) LM.Story.afterTrophy(G);
   }
 
   // -------------------- INTERNATIONAL --------------------
@@ -341,6 +344,7 @@
       G.teams[br.runnerUp].name + " ! Prize money : " + LM.U.money(prize) + ".");
     if (br.champion === G.teamId)
       LM.addNews(G, "TITRE INTERNATIONAL ! 🌍🏆", "Votre équipe gagne le " + st.name + " ! Un exploit historique.");
+    if (br.champion === G.teamId && LM.Story) LM.Story.afterTrophy(G);
     nextStage(G);
   }
 
@@ -363,6 +367,7 @@
     LM.Club.tickInjuries(G);
     LM.Club.applyMentorship(G);
     G.trainingUsed = {};
+    if (LM.Story) LM.Story.tick(G);
   }
 
   function offseason(G) {
@@ -397,7 +402,8 @@
   // Bilan financier annuel : salaires versés + revenus sponsors.
   function finances(G, my, year) {
     var wages = my.roster.reduce(function (s, p) { return s + (p.salary || 0); }, 0);
-    var sponsor = 1200000 + my.tier * 22000 + (G.board ? G.board.confidence * 8000 : 0);
+    var storySponsor = LM.Story ? LM.Story.sponsorIncome(G) : 0;
+    var sponsor = 1200000 + my.tier * 22000 + (G.board ? G.board.confidence * 8000 : 0) + storySponsor;
     my.budget = Math.max(0, my.budget - wages + sponsor);
     LM.addNews(G, "Bilan financier " + year,
       "Salaires versés : -" + LM.U.money(wages) + " · Revenus sponsors : +" + LM.U.money(sponsor) +

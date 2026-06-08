@@ -25,6 +25,11 @@
     if (!entry) return { ok: false, msg: "Joueur introuvable sur le marché." };
     if (my.budget < entry.fee) return { ok: false, msg: "Budget insuffisant (" + LM.U.money(entry.fee) + " requis)." };
     var p = entry.p;
+    var refusal = LM.Story ? LM.Story.transferRefusal(G, entry) : null;
+    if (refusal) {
+      LM.addNews(G, "Agent : " + p.name, refusal, "mercato");
+      return { ok: false, msg: refusal };
+    }
 
     if (entry.free) {
       G.freeAgents = G.freeAgents.filter(function (x) { return x.id !== p.id; });
@@ -82,9 +87,10 @@
       G.offers.push(off);
       LM.addNews(G, "💼 Offre pour " + p.name,
         from.name + " propose " + LM.U.money(fee) + " pour " + p.name + " (" + LM.ROLE_FR[p.role] +
-        "). Acceptez ou refusez dans l'onglet Transferts.");
+        "). Acceptez ou refusez dans l'onglet Direction.", "mercato");
     });
     if (G.offers.length > 12) G.offers = G.offers.slice(-12);
+    if (LM.Story) LM.Story.generateRumors(G, "mercato");
   };
 
   T.acceptBid = function (G, offerId) {

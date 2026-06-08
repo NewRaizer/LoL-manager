@@ -129,6 +129,7 @@
     LM.Board.init(G);
     LM.Board.setSeasonObjective(G);
     LM.Club.refreshScoutPool(G, rng);
+    if (LM.Story) LM.Story.init(G);
     LM.Meta.init(G);
     LM.Calendar.startSeason(G);
     LM.addNews(G, "Bienvenue", "Bienvenue " + G.manager + " ! Vous prenez la tête de " +
@@ -154,8 +155,8 @@
   }
   LM.genFreeAgents = genFreeAgents;
 
-  LM.addNews = function (G, title, body) {
-    G.inbox.unshift({ id: LM.U.uid(), date: Object.assign({}, G.date), title: title, body: body, read: false });
+  LM.addNews = function (G, title, body, tag) {
+    G.inbox.unshift({ id: LM.U.uid(), date: Object.assign({}, G.date), title: title, body: body, tag: tag || "club", read: false });
     if (G.inbox.length > 120) G.inbox.pop();
   };
 
@@ -189,6 +190,7 @@
     });
     (G.freeAgents || []).forEach(fixPlayer);
     if (!G.meta || !Object.keys(G.meta).length) { G.meta = {}; LM.Meta.init(G); }
+    if (LM.Story) LM.Story.ensure(G);
     if (!G.board) {
       LM.Board.init(G); LM.Board.setSeasonObjective(G);
       if (G.season && G.season.stage && G.season.stage.type === "split")

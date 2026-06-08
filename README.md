@@ -40,6 +40,7 @@ C'est tout. Pas d'internet requis, pas de logiciel à installer.
 - **Marché des transferts** : recruter des agents libres ou des joueurs d'autres équipes, vendre les tiens.
 - **Faire progresser ta carrière** sur plusieurs saisons : les joueurs vieillissent, progressent ou déclinent, les contrats évoluent, de nouveaux talents apparaissent.
 - **Remporter des trophées** nationaux et internationaux et viser le titre mondial.
+- **Vivre une carrière plus dynamique** : décisions du jour, rumeurs, réputation manager, fanbase, sponsors, succès et relations dans le vestiaire.
 
 ---
 
@@ -59,6 +60,14 @@ Le **draft est le cœur du jeu** : un bon draft peut battre une équipe plus for
 - **Maîtrise des champions** : chaque joueur a une **maîtrise par champion** qui monte en jouant, et que tu peux **entraîner** (fiche du joueur). Forcer un joueur sur un champion qu'il ne maîtrise pas affaiblit ta puissance.
 
 Après chaque match, l'écran **« Analyse du draft »** te montre pourquoi tu as gagné ou perdu (puissance, bonus de compo, bonus/malus de contres).
+
+## 🔥 Vie du club & moments de match
+
+- **Décisions du jour** : demandes de joueurs, activations sponsors, rivalités, alertes méta et jeunes de l'académie. Chaque choix a des conséquences.
+- **Plan de match** : choisis un style (équilibre, early game, teamfight, scaling, splitpush) et une priorité de draft (méta, confort, counter).
+- **Matchs plus vivants** : chaque game génère une mini-timeline, un MVP, un score de kills, une durée et un box score joueur.
+- **Réputation & fanbase** : tes résultats, trophées, succès et choix publics influencent ton prestige, les revenus sponsors et l'attractivité du projet.
+- **Vestiaire** : les relations clés (mid-jungle, botlane, etc.) évoluent avec les victoires, défaites et événements.
 
 ## 🧠 Profondeur de management (façon Football Manager)
 
@@ -82,6 +91,7 @@ js/core/meta.js         ← méta/patchs, contres, valeur de draft
 js/core/draft.js        ← draft pick & ban + IA adverse
 js/core/board.js        ← direction : objectifs & confiance
 js/core/club.js         ← staff, blessures, scouting, académie, mentorat
+js/core/story.js        ← événements, tactiques, réputation, fans, succès, relations
 js/core/                ← moteur (simulation, calendrier, transferts, entraînement, sauvegarde)
 js/ui/app.js            ← interface
 ```

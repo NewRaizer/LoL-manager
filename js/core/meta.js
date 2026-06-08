@@ -92,6 +92,7 @@
     if (downs.length) msg += "🔽 Nerf : " + downs.slice(0, 6).join(", ") + ".";
     LM.addNews(G, "Patch " + (patchLabel || ("15." + G.patchNote)) + " — nouvelle méta",
       (msg || "Ajustements mineurs.") + " Adaptez vos drafts et vos entraînements !");
+    if (LM.Story) LM.Story.onSplitStart(G, patchLabel || ("Patch 15." + G.patchNote));
   };
 
   Meta.tier = function (G, champ) { return (G.meta && G.meta[champ]) || 5; };
@@ -139,9 +140,10 @@
     var teamBonus = LM.Club ? LM.Club.analystBonus(team) : 0;
     var hasLeader = LM.ROLES.some(function (r) { return line[r] && LM.hasTrait(line[r], "LEADER"); });
     if (hasLeader) teamBonus += 2.5;
+    var tactic = LM.Story ? LM.Story.tacticBonus(G, team, types, roleDetail, comp) : 0;
     return {
-      power: base + comp + counter + teamBonus,
-      base: base, comp: comp, counter: counter, teamBonus: teamBonus,
+      power: base + comp + counter + teamBonus + tactic,
+      base: base, comp: comp, counter: counter, teamBonus: teamBonus, tactic: tactic,
       types: types, roleDetail: roleDetail
     };
   };

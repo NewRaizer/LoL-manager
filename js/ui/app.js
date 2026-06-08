@@ -35,6 +35,7 @@
     if (screen === "menu") { app().innerHTML = renderMenu(); return; }
     if (screen === "newgame") { app().innerHTML = renderNewGame(); return; }
     if (G && G.fired) { app().innerHTML = renderFired(); return; }
+    if (G && LM.Story) LM.Story.ensure(G);
     app().innerHTML = layout(renderScreen());
   }
 
@@ -146,6 +147,60 @@
     }
   }
 
+  function renderEventCard() {
+    if (!LM.Story) return "";
+    LM.Story.ensure(G);
+    var ev = (G.story.pendingEvents || [])[0];
+    if (!ev) {
+      return '<div class="card event-card quiet"><h3>Decision du jour</h3>' +
+        '<p class="muted">Aucune urgence dans le vestiaire. Profitez-en pour preparer le prochain match.</p></div>';
+    }
+    var choices = LM.Story.eventChoices(ev).map(function (c) {
+      return '<button class="btn sm" data-action="event-choice" data-id="' + ev.id + '" data-choice="' + c[0] + '">' +
+        esc(c[1]) + '<span class="btn-sub">' + esc(c[2]) + '</span></button>';
+    }).join("");
+    return '<div class="card event-card"><h3>Decision du jour</h3>' +
+      '<div class="event-title">' + esc(ev.title) + '</div>' +
+      '<p>' + esc(ev.body) + '</p><div class="event-actions">' + choices + '</div></div>';
+  }
+
+  function renderTacticsCard() {
+    if (!LM.Story) return "";
+    var styles = Object.keys(LM.Story.STYLES).map(function (k) {
+      var s = LM.Story.STYLES[k];
+      return '<div class="pill ' + (G.tactics.style === k ? "active" : "") + '" data-action="set-tactic" data-key="' + k + '">' +
+        esc(s.name) + '</div>';
+    }).join("");
+    var focus = Object.keys(LM.Story.FOCUS).map(function (k) {
+      var f = LM.Story.FOCUS[k];
+      return '<div class="pill ' + (G.tactics.focus === k ? "active" : "") + '" data-action="set-focus" data-key="' + k + '">' +
+        esc(f.name) + '</div>';
+    }).join("");
+    var st = LM.Story.STYLES[G.tactics.style], fo = LM.Story.FOCUS[G.tactics.focus];
+    return '<div class="card tactics-card"><h3>Plan de match</h3>' +
+      '<div class="mini-label">Style</div><div class="leaguetabs">' + styles + '</div>' +
+      '<div class="mini-label">Priorite draft</div><div class="leaguetabs">' + focus + '</div>' +
+      '<p class="muted">' + esc(st.desc) + ' ' + esc(fo.desc) + '</p></div>';
+  }
+
+  function renderFeedCard() {
+    if (!G.inbox || !G.inbox.length) return "";
+    var items = G.inbox.slice(0, 4).map(function (n) {
+      var body = String(n.body || "");
+      return '<div class="feed-row"><span class="tag tag-' + esc(n.tag || "club") + '">' + esc(n.tag || "club") + '</span>' +
+        '<div><b>' + esc(n.title) + '</b><span>' + esc(body).slice(0, 120) + (body.length > 120 ? "..." : "") + '</span></div></div>';
+    }).join("");
+    return '<div class="card"><h3>Fil du club</h3>' + items +
+      '<button class="btn sm" data-action="nav" data-s="inbox">Voir tous les messages</button></div>';
+  }
+
+  function renderCareerKpis() {
+    if (!LM.Story) return "";
+    var s = G.story;
+    return '<div class="k"><div class="v">' + s.reputation + '</div><div class="l">Reputation</div></div>' +
+      '<div class="k"><div class="v">' + s.fanbase + '</div><div class="l">Fans</div></div>';
+  }
+
   // ---------- Accueil ----------
   function renderHub() {
     var desc = LM.Calendar.describe(G);
@@ -194,10 +249,12 @@
       esc(desc.sub) + ' · ' + LM.U.fmtDate(G.date) + ' ' + G.date.year + (obj ? ' · 🎯 ' + esc(obj) : "") + '</div></div>' +
       '<div class="kpi"><div class="k"><div class="v">' + LM.U.money(my.budget) + '</div><div class="l">Budget</div></div>' +
       '<div class="k"><div class="v" style="color:' + confCol + '">' + conf + '</div><div class="l">Confiance</div></div>' +
+      renderCareerKpis() +
       '<div class="k"><div class="v">' + my.facilities + '/10</div><div class="l">Infrastructures</div></div>' +
       '<div class="k"><div class="v">' + my.trophies.length + '</div><div class="l">Trophées</div></div></div></div>' +
       '<div class="grid cols-2">' + matchCard + lineCard + '</div>' +
-      '<div class="grid cols-2" style="margin-top:16px">' + logCard + injCard + '</div>';
+      '<div class="grid cols-2" style="margin-top:16px">' + renderEventCard() + renderTacticsCard() + '</div>' +
+      '<div class="grid cols-3" style="margin-top:16px">' + renderFeedCard() + logCard + injCard + '</div>';
   }
 
   // ---------- Effectif ----------
@@ -298,10 +355,16 @@
         '<table><thead><tr><th>Champion</th><th class="num">Tier</th><th class="num">Maît.</th></tr></thead>' +
         '<tbody>' + rows + '</tbody></table></div>';
     }).join("");
+    var alerts = LM.Story ? LM.Story.metaAlerts(G) : [];
+    var alertCard = alerts.length ? '<div class="card meta-alert"><h3>Alertes de preparation</h3>' +
+      alerts.map(function (a) {
+        return '<div class="feed-row"><span>' + roleTag(a.role) + '</span><div><b>' + esc(a.champ) + '</b>' +
+          '<span>' + esc(a.player) + ' : maîtrise ' + a.mastery + '/99 sur un pick ' + LM.Meta.tierLetter(a.tier) + ' tier.</span></div></div>';
+      }).join("") + '</div>' : "";
     return '<div class="page-head"><div><h1>Méta — Patch 15.' + G.patchNote + '</h1>' +
       '<div class="sub">Tier list du moment. Elle change à chaque split : adaptez vos drafts et entraînements.</div></div></div>' +
       '<p class="muted">Contres : Assassin ▶ Mage/Tireur · Tireur/Mage ▶ Tank/Combattant · Tank/Combattant ▶ Assassin · Enchanteur protège des Assassins.</p>' +
-      '<div class="grid meta-grid">' + cols + '</div>';
+      alertCard + '<div class="grid meta-grid">' + cols + '</div>';
   }
 
   // ---------- Compétition (classement + bracket) ----------
@@ -501,6 +564,7 @@
   // ---------- Club & palmarès ----------
   function renderClub() {
     var my = LM.myTeam(G);
+    if (LM.Story) LM.Story.ensure(G);
     var tro = my.trophies.length ? my.trophies.slice().reverse().map(function (t) {
       return '<div class="news"><div class="t">' + (t.major ? "🌍 " : "🏆 ") + esc(t.title) + ' ' + t.year + '</div></div>';
     }).join("") : '<p class="muted">Aucun trophée pour le moment. À vous de jouer !</p>';
@@ -512,9 +576,27 @@
       return '<tr class="' + (r.id === G.teamId ? "me" : "") + '"><td class="num">' + (i + 1) + '</td>' +
         '<td>' + t.flag + ' ' + esc(t.name) + '</td><td>' + t.league + '</td>' +
         '<td class="num">' + Math.round(r.pw) + '</td></tr>'; }).join("");
+    var story = G.story || {};
+    var career = '<div class="card"><h3>Carriere manager</h3><div class="kpi">' +
+      '<div class="k"><div class="v">' + (story.reputation || 0) + '</div><div class="l">Reputation</div></div>' +
+      '<div class="k"><div class="v">' + (story.fanbase || 0) + '</div><div class="l">Fanbase</div></div>' +
+      '<div class="k"><div class="v">' + (story.sponsorLevel || 1) + '/5</div><div class="l">Sponsors</div></div>' +
+      '<div class="k"><div class="v">' + (story.achievements || []).length + '</div><div class="l">Succes</div></div></div></div>';
+    var rel = (my.relationships || []).map(function (r) {
+      var a = my.roster.find(function (p) { return p.id === r.a; });
+      var b = my.roster.find(function (p) { return p.id === r.b; });
+      if (!a || !b) return "";
+      return '<div class="relation-row"><div><b>' + esc(r.label) + '</b><span>' + esc(a.name) + ' + ' + esc(b.name) + '</span></div>' +
+        '<div class="relation-score"><span style="width:' + r.score + '%"></span></div><strong>' + r.score + '</strong></div>';
+    }).join("");
+    var ach = (story.achievements || []).slice(0, 6).map(function (a) {
+      return '<div class="achievement"><b>' + esc(a.title) + '</b><span>' + esc(a.body) + '</span></div>';
+    }).join("") || '<p class="muted">Aucun succes debloque pour le moment.</p>';
     return '<div class="page-head"><h1>' + my.flag + ' ' + esc(my.name) + '</h1></div>' +
-      '<div class="grid cols-2"><div class="card"><h3>Palmarès</h3>' + tro + '</div>' +
-      '<div class="card"><h3>Classement mondial des clubs (puissance)</h3><table><tbody>' + rk + '</tbody></table></div></div>';
+      '<div class="grid cols-2">' + career + '<div class="card"><h3>Palmarès</h3>' + tro + '</div></div>' +
+      '<div class="grid cols-2" style="margin-top:16px"><div class="card"><h3>Dynamique du vestiaire</h3>' + rel + '</div>' +
+      '<div class="card"><h3>Succes recents</h3>' + ach + '</div></div>' +
+      '<div class="card" style="margin-top:16px"><h3>Classement mondial des clubs (puissance)</h3><table><tbody>' + rk + '</tbody></table></div>';
   }
 
   // ---------- Messages ----------
@@ -522,7 +604,8 @@
     G.inbox.forEach(function (n) { n.read = true; });
     save();
     var list = G.inbox.length ? G.inbox.map(function (n) {
-      return '<div class="news"><div class="t">' + esc(n.title) + '</div>' +
+      return '<div class="news news-' + esc(n.tag || "club") + '"><div class="t"><span class="tag tag-' + esc(n.tag || "club") + '">' +
+        esc(n.tag || "club") + '</span> ' + esc(n.title) + '</div>' +
         '<div class="d">' + LM.U.fmtDate(n.date) + ' ' + n.date.year + '</div>' +
         '<div class="b">' + esc(n.body) + '</div></div>'; }).join("") : '<p class="muted">Aucun message.</p>';
     return '<div class="page-head"><h1>Messages</h1></div>' + list;
@@ -630,7 +713,8 @@
       '<div class="kpi"><div class="k"><div class="v">' + Math.round(r.power) + '</div><div class="l">Puissance</div></div>' +
       '<div class="k"><div class="v">' + sgn(r.comp) + '</div><div class="l">Compo</div></div>' +
       '<div class="k"><div class="v" style="color:' + (r.counter >= 0 ? "var(--green)" : "var(--red)") + '">' +
-      sgn(r.counter) + '</div><div class="l">Contres</div></div></div>' +
+      sgn(r.counter) + '</div><div class="l">Contres</div></div>' +
+      '<div class="k"><div class="v">' + sgn(r.tactic || 0) + '</div><div class="l">Plan</div></div></div>' +
       '<table style="margin-top:8px"><tbody>' + r.roleDetail.map(function (d) {
         return '<tr><td>' + roleTag(d.role) + '</td><td><b>' + esc(d.champ) + '</b> ' + clsTag(d.cls) + '</td>' +
       '<td class="num muted">M ' + d.mastery + '</td><td class="num muted">Méta ' + LM.Meta.tierLetter(d.meta) + '</td></tr>';
@@ -645,8 +729,12 @@
     var games = res.games.map(function (g, i) {
       var hw = g.homeWin;
       var winId = hw ? res.homeId : res.awayId;
-      return '<div class="g">Partie ' + (i + 1) + ' — <b>' + esc(G.teams[winId].short) + '</b> gagne · ' +
-        g.kills[0] + '/' + g.kills[1] + ' kills · ' + g.duration + ' min</div>'; }).join("");
+      var tl = (g.timeline || []).map(function (ev) {
+        return '<div class="timeline-row ' + (ev.tone || "") + '"><span>' + ev.minute + '\'</span><b>' + esc(ev.text) + '</b></div>';
+      }).join("");
+      return '<div class="game-story"><div class="game-head">Partie ' + (i + 1) + ' · <b>' + esc(G.teams[winId].short) +
+        '</b> gagne · ' + g.kills[0] + '/' + g.kills[1] + ' kills · ' + g.duration + ' min</div>' + tl + '</div>';
+    }).join("");
     var g0 = res.games[0];
     var analysis = "";
     if (g0 && g0.ratingH) {
@@ -655,11 +743,31 @@
       analysis = '<div class="card" style="margin-top:16px"><h3>Analyse du draft</h3>' +
         '<div class="grid cols-2">' + ratingBox("🔵 Vous", myR) + ratingBox("🔴 Adversaire", opR) + '</div></div>';
     }
+    var mvp = res.mvp;
+    var mvpCard = mvp ? '<div class="mvp-card"><div class="mini-label">MVP de la serie</div>' +
+      '<div class="mvp-name">' + G.teams[mvp.teamId].flag + ' ' + esc(mvp.name) + '</div>' +
+      '<div class="muted">' + roleTag(mvp.role) + ' ' + esc(mvp.champ || "") + '</div></div>' : "";
+    function playerById(team, id) {
+      return (team.roster || []).find(function (p) { return p.id === id; });
+    }
+    var boxRows = [myId, oppId].map(function (tid) {
+      var team = G.teams[tid];
+      var side = tid === res.homeId ? "home" : "away";
+      var lineIds = (res.lineups && res.lineups[side]) || {};
+      return LM.ROLES.map(function (r) {
+        var p = playerById(team, lineIds[r]); if (!p) return "";
+        var kda = (p.stats.kills || 0) + "/" + (p.stats.deaths || 0) + "/" + (p.stats.assists || 0);
+        return '<tr><td>' + team.flag + ' ' + roleTag(r) + '</td><td><b>' + esc(p.name) + '</b></td>' +
+          '<td class="num">' + kda + '</td><td class="num">' + (p.stats.mvp || 0) + '</td></tr>';
+      }).join("");
+    }).join("");
     return '<div class="page-head"><h1>Résultat — ' + esc(ps.label) + '</h1></div>' +
       '<div class="card"><div class="win-banner ' + (won ? "win" : "loss") + '">' +
       (won ? "VICTOIRE 🎉" : "DÉFAITE") + '</div>' +
       '<div class="scoreboard">' + G.teams[myId].short + ' ' + myScore + ' — ' + opScore + ' ' + G.teams[oppId].short + '</div>' +
-      '<div class="gamelog" style="margin-top:16px">' + games + '</div>' +
+      mvpCard +
+      '<div class="gamelog story-log" style="margin-top:16px">' + games + '</div>' +
+      '<div class="boxscore-box"><h3>Box score saison</h3><table><thead><tr><th>Role</th><th>Joueur</th><th class="num">K/D/A</th><th class="num">MVP</th></tr></thead><tbody>' + boxRows + '</tbody></table></div>' +
       '<div style="text-align:center;margin-top:18px"><button class="btn primary big" data-action="after-match">Continuer ▶</button></div></div>' +
       analysis;
   }
@@ -682,6 +790,9 @@
         nav("hub"); break;
 
       case "nav": nav(d.s); break;
+      case "event-choice": act(function () { return LM.Story.resolveEvent(G, d.id, d.choice); }); break;
+      case "set-tactic": act(function () { return LM.Story.setTactic(G, d.key); }); break;
+      case "set-focus": act(function () { return LM.Story.setFocus(G, d.key); }); break;
 
       case "play": {
         var ps = LM.Calendar.playerSeries(G);
