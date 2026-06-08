@@ -77,9 +77,9 @@ js/ui/app.js            ← interface
 Tout est dans **`js/data/leagues.js`**. Chaque équipe ressemble à ça :
 
 ```js
-{ id: "G2", name: "G2 Esports", short: "G2", league: "LEC", flag: "🇪🇺", tier: 90, players: [
-  P("BrokenBlade", "TOP", "🇩🇪", 25), P("Yike", "JNG", "🇫🇷", 21),
-  P("Caps", "MID", "🇩🇰", 26), P("Hans Sama", "ADC", "🇫🇷", 25), P("Mikyx", "SUP", "🇸🇮", 26) ] },
+{ id: "G2", name: "G2 Esports", short: "G2", league: "LEC", flag: "🇪🇺", tier: 92, players: [
+  P("BrokenBlade", "TOP", "🇩🇪", 26), P("SkewMond", "JNG", "🇫🇷", 21),
+  P("Caps", "MID", "🇩🇰", 26), P("Hans Sama", "ADC", "🇫🇷", 26), P("Labrov", "SUP", "🇬🇷", 23) ] },
 ```
 
 - `tier` = niveau global de l'équipe (50–99), il détermine la force des joueurs générés.
