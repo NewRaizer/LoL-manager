@@ -38,35 +38,29 @@
     return avg + synergy + (draftBonus || 0);
   };
 
-  // Draft automatique : choisit un champion par rôle pour chaque joueur.
-  Sim.autoDraft = function (rng, team) {
+  // Draft automatique (IA) : meilleur champion par rôle selon méta + maîtrise.
+  Sim.autoDraft = function (G, rng, team) {
     var line = Sim.lineup(team), picks = {};
     LM.ROLES.forEach(function (r) {
       var p = line[r];
-      if (p && p.champs && p.champs.length) picks[r] = LM.U.pick(rng, p.champs);
-      else picks[r] = (LM.CHAMPIONS_BY_ROLE[r] || ["?"])[0];
+      var pool = (p && p.champs && p.champs.length) ? p.champs : (LM.CHAMPIONS_BY_ROLE[r] || ["?"]);
+      var best = pool[0], bestS = -1e9;
+      pool.forEach(function (c) {
+        var s = LM.Meta.tier(G, c) + (p ? LM.Meta.masteryDelta(p, c) : 0) + rng() * 1.5;
+        if (s > bestS) { bestS = s; best = c; }
+      });
+      picks[r] = best;
     });
     return picks;
   };
 
-  // Bonus de draft : +1.5 par champion issu du pool favori du joueur.
-  Sim.draftBonus = function (team, picks) {
-    var line = Sim.lineup(team), bonus = 0;
-    LM.ROLES.forEach(function (r) {
-      var p = line[r];
-      if (p && picks[r] && p.champs.indexOf(picks[r]) >= 0) bonus += 1.5;
-    });
-    return bonus;
-  };
-
-  // Simule UNE partie. Renvoie le détail (vainqueur + score de kills + mvp).
-  Sim.game = function (rng, home, away, draftH, draftA) {
-    var pH = Sim.power(home, Sim.draftBonus(home, draftH));
-    var pA = Sim.power(away, Sim.draftBonus(away, draftA));
-    var diff = pH - pA;
+  // Simule UNE partie : la puissance dépend du draft (compo, contres, méta, maîtrise).
+  Sim.game = function (G, rng, home, away, picksH, picksA) {
+    var rH = LM.Meta.draftRating(G, home, picksH, picksA);
+    var rA = LM.Meta.draftRating(G, away, picksA, picksH);
+    var diff = rH.power - rA.power;
     var prob = 1 / (1 + Math.pow(10, -diff / 12)); // logistique
     var homeWin = rng() < prob;
-    // Score de kills : l'équipe la plus forte tend à gagner plus large.
     var margin = LM.U.clamp(Math.abs(diff) * 0.5 + LM.U.rint(rng, 0, 8), 1, 28);
     var loserK = LM.U.clamp(LM.U.rint(rng, 2, 14) - Math.round(margin / 4), 0, 20);
     var winnerK = loserK + Math.round(margin) + LM.U.rint(rng, 1, 4);
@@ -75,8 +69,21 @@
       homeWin: homeWin,
       kills: homeWin ? [winnerK, loserK] : [loserK, winnerK],
       duration: duration,
-      mvpRole: LM.U.pick(rng, LM.ROLES)
+      mvpRole: LM.U.pick(rng, LM.ROLES),
+      ratingH: rH, ratingA: rA
     };
+  };
+
+  // Progression de la maîtrise : jouer un champion l'améliore peu à peu.
+  Sim.growMastery = function (team, picks) {
+    var line = Sim.lineup(team);
+    LM.ROLES.forEach(function (r) {
+      var p = line[r], c = picks[r]; if (!p || !c) return;
+      if (!p.mastery) p.mastery = {};
+      var cur = p.mastery[c] != null ? p.mastery[c] : 20;
+      var gain = cur < 70 ? 1.4 : (cur < 90 ? 0.5 : 0.15);
+      p.mastery[c] = LM.U.clamp(cur + gain, 0, 99);
+    });
   };
 
   // Simule une SÉRIE (Bo1/Bo3/Bo5).
@@ -88,10 +95,11 @@
     var need = Math.ceil(bo / 2);
     var hW = 0, aW = 0, games = [];
     while (hW < need && aW < need) {
-      var dH = drafts[homeId] || Sim.autoDraft(rng, home);
-      var dA = drafts[awayId] || Sim.autoDraft(rng, away);
-      var g = Sim.game(rng, home, away, dH, dA);
+      var dH = drafts[homeId] || Sim.autoDraft(G, rng, home);
+      var dA = drafts[awayId] || Sim.autoDraft(G, rng, away);
+      var g = Sim.game(G, rng, home, away, dH, dA);
       g.draftH = dH; g.draftA = dA;
+      Sim.growMastery(home, dH); Sim.growMastery(away, dA);
       if (g.homeWin) hW++; else aW++;
       games.push(g);
     }

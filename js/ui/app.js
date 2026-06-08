@@ -93,6 +93,7 @@
       ["hub", "🏠", "Accueil"],
       ["roster", "👥", "Effectif"],
       ["competition", "🏆", "Compétition"],
+      ["meta", "📊", "Méta"],
       ["transfers", "💸", "Transferts"],
       ["training", "🎯", "Entraînement"],
       ["club", "🏟️", "Club & Palmarès"],
@@ -119,6 +120,7 @@
       case "roster": return renderRoster();
       case "player": return renderPlayer();
       case "competition": return renderCompetition();
+      case "meta": return renderMeta();
       case "transfers": return renderTransfers();
       case "training": return renderTraining();
       case "club": return renderClub();
@@ -213,23 +215,58 @@
     var trained = G.trainingUsed[p.id];
     var trainSel = '<select id="trainattr">' + Object.keys(attrs).map(function (k) {
       return '<option value="' + k + '">' + attrs[k] + '</option>'; }).join("") + '</select>';
-    var champs = p.champs.map(function (c) { return '<span class="chip">' + esc(c) + '</span>'; }).join(" ");
+    var pool = p.champs.slice().sort(function (a, b) {
+      return ((p.mastery[b] || 0) - (p.mastery[a] || 0)); });
+    var champBars = pool.map(function (c) {
+      var m = Math.round((p.mastery && p.mastery[c]) || 0);
+      return '<div class="attr"><div class="lab"><span>' + esc(c) + ' ' + clsTag(LM.CLS[c]) +
+        ' <span class="muted">méta ' + LM.Meta.tierLetter(LM.Meta.tier(G, c)) + '</span></span><span>' + m + '</span></div>' +
+        '<div class="bar"><span style="width:' + m + '%"></span></div></div>'; }).join("");
+    var champSel = '<select id="champtrain">' + (LM.CHAMPIONS_BY_ROLE[p.role] || []).map(function (c) {
+      return '<option value="' + esc(c) + '">' + esc(c) + ' — ' + LM.CLASSES[LM.CLS[c]] +
+        ' (méta ' + LM.Meta.tierLetter(LM.Meta.tier(G, c)) + ')</option>'; }).join("") + '</select>';
     return '<div class="page-head"><div><h1>' + p.nat + ' ' + esc(p.name) + ' ' + ovrTag(p.ovr) + '</h1>' +
       '<div class="sub">' + LM.ROLE_FR[p.role] + ' · ' + p.age + ' ans · Potentiel ' + p.potential +
       ' · Valeur ' + LM.U.money(p.value) + '</div></div>' +
       '<button class="btn" data-action="nav" data-s="roster">← Effectif</button></div>' +
-      '<div class="grid cols-2"><div class="card"><h3>Attributs</h3>' + bars + '</div>' +
-      '<div class="card"><h3>Pool de champions</h3><p>' + champs + '</p>' +
+      '<div class="grid cols-2"><div class="card"><h3>Attributs</h3>' + bars +
       '<h3 style="margin-top:16px">État</h3>' +
       '<div class="kpi"><div class="k"><div class="v">' + (p.form >= 0 ? "+" : "") + p.form + '</div><div class="l">Forme</div></div>' +
       '<div class="k"><div class="v">' + p.condition + '%</div><div class="l">Condition</div></div>' +
-      '<div class="k"><div class="v">' + p.morale + '</div><div class="l">Moral</div></div></div>' +
-      '<h3 style="margin-top:16px">Entraînement</h3>' +
-      '<div style="display:flex;gap:8px;align-items:center">' + trainSel +
+      '<div class="k"><div class="v">' + p.morale + '</div><div class="l">Moral</div></div></div></div>' +
+      '<div class="card"><h3>Maîtrise des champions</h3>' + (champBars || '<p class="muted">Aucun champion maîtrisé.</p>') +
+      '<h3 style="margin-top:16px">Entraînement (1 séance / tour)</h3>' +
+      '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">' + trainSel +
       '<button class="btn primary" data-action="train" data-id="' + p.id + '" ' + (trained ? "disabled" : "") + '>' +
-      (trained ? "Déjà entraîné" : "Entraîner") + '</button></div>' +
+      (trained ? "Fait" : "Attribut") + '</button></div>' +
+      '<div style="display:flex;gap:8px;align-items:center">' + champSel +
+      '<button class="btn" data-action="train-champ" data-id="' + p.id + '" ' + (trained ? "disabled" : "") + '>Champion</button></div>' +
       '<div style="margin-top:14px"><button class="btn danger sm" data-action="release" data-id="' + p.id + '">Libérer / vendre le joueur</button></div>' +
       '</div></div>';
+  }
+
+  // ---------- Méta (tier list) ----------
+  function renderMeta() {
+    var my = LM.myTeam(G);
+    var cols = LM.ROLES.map(function (r) {
+      var line = LM.Sim.lineup(my)[r];
+      var champs = (LM.CHAMPIONS_BY_ROLE[r] || []).slice()
+        .sort(function (a, b) { return LM.Meta.tier(G, b) - LM.Meta.tier(G, a); }).slice(0, 14);
+      var rows = champs.map(function (c) {
+        var t = LM.Meta.tier(G, c);
+        var mast = line && line.mastery && line.mastery[c] ? Math.round(line.mastery[c]) : 0;
+        return '<tr><td><b>' + esc(c) + '</b><br><span style="font-size:11px">' + clsTag(LM.CLS[c]) + '</span></td>' +
+          '<td class="num"><span class="ovr ' + (t >= 8 ? "ovr-elite" : t >= 6 ? "ovr-great" : t >= 4 ? "ovr-good" : "ovr-low") +
+          '">' + LM.Meta.tierLetter(t) + '</span></td>' +
+          '<td class="num muted">' + (mast || "·") + '</td></tr>'; }).join("");
+      return '<div class="card"><h3>' + LM.ROLE_FR[r] + '</h3>' +
+        '<table><thead><tr><th>Champion</th><th class="num">Tier</th><th class="num">Maît.</th></tr></thead>' +
+        '<tbody>' + rows + '</tbody></table></div>';
+    }).join("");
+    return '<div class="page-head"><div><h1>Méta — Patch 15.' + G.patchNote + '</h1>' +
+      '<div class="sub">Tier list du moment. Elle change à chaque split : adaptez vos drafts et entraînements.</div></div></div>' +
+      '<p class="muted">Contres : Assassin ▶ Mage/Tireur · Tireur/Mage ▶ Tank/Combattant · Tank/Combattant ▶ Assassin · Enchanteur protège des Assassins.</p>' +
+      '<div class="grid" style="grid-template-columns:repeat(5,1fr)">' + cols + '</div>';
   }
 
   // ---------- Compétition (classement + bracket) ----------
@@ -360,36 +397,113 @@
     return '<div class="page-head"><h1>Messages</h1></div>' + list;
   }
 
-  // ---------- Écran de match (draft + résultat) ----------
+  // ---------- Écran de match (draft pick & ban + résultat) ----------
+  function clsTag(cls) {
+    var col = { TANK: "#8bd3ff", BRUISER: "#ffb46b", ASSASSIN: "#ff6b8b",
+      MAGE: "#c08bff", MARKSMAN: "#6dffb0", ENCHANTER: "#ffe08b" }[cls] || "#aaa";
+    return '<span class="role-tag" style="border-color:' + col + ';color:' + col + '">' +
+      (LM.CLASSES[cls] || cls) + '</span>';
+  }
+
   function renderMatch() {
     var ps = params.ps;
     if (!ps) return renderHub();
     var myId = ps.homeId === G.teamId ? ps.homeId : (ps.awayId === G.teamId ? ps.awayId : ps.homeId);
     var oppId = myId === ps.homeId ? ps.awayId : ps.homeId;
-    var my = G.teams[myId], opp = G.teams[oppId];
-
     if (params.result) return renderMatchResult(ps, myId, oppId);
+    var draft = params.draft;
+    if (draft && draft.phase === "DONE") return renderDraftReview(ps, draft);
+    return renderDraftBoard(ps, draft);
+  }
 
-    var line = LM.Sim.lineup(my);
-    var rows = LM.ROLES.map(function (r) {
-      var p = line[r];
-      var pool = (p && p.champs) ? p.champs : [];
-      var all = LM.CHAMPIONS_BY_ROLE[r] || [];
-      var opts = pool.map(function (c) { return '<option value="' + esc(c) + '">★ ' + esc(c) + '</option>'; })
-        .concat(all.filter(function (c) { return pool.indexOf(c) < 0; }).map(function (c) {
-          return '<option value="' + esc(c) + '">' + esc(c) + '</option>'; })).join("");
-      return '<div class="draft-row"><div>' + roleTag(r) + '</div>' +
-        '<div>' + (p ? p.nat + ' <b>' + esc(p.name) + '</b> ' + ovrTag(p.ovr) : "—") + '</div>' +
-        '<div><select id="pick_' + r + '">' + opts + '</select></div></div>';
-    }).join("");
+  // Bandeau des deux compos pendant/après le draft.
+  function draftPanels(draft) {
+    function side(label, teamId, picks, bans, mine) {
+      var t = G.teams[teamId];
+      var rows = LM.ROLES.map(function (r) {
+        var c = picks[r];
+        var p = LM.Sim.lineup(t)[r];
+        return '<tr><td>' + roleTag(r) + '</td><td>' + (p ? esc(p.name) : "—") + '</td>' +
+          '<td>' + (c ? '<b>' + esc(c) + '</b> ' + clsTag(LM.CLS[c]) : '<span class="muted">…</span>') + '</td></tr>';
+      }).join("");
+      var bansTxt = bans.length ? bans.map(function (b) { return '<span class="chip" style="opacity:.6;text-decoration:line-through">' + esc(b) + '</span>'; }).join(" ") : '<span class="muted">—</span>';
+      return '<div class="card" style="' + (mine ? "border-color:var(--accent)" : "border-color:var(--red)") + '">' +
+        '<h3>' + label + ' — ' + t.flag + ' ' + esc(t.short) + '</h3>' +
+        '<table><tbody>' + rows + '</tbody></table>' +
+        '<div style="margin-top:8px"><span class="muted" style="font-size:12px">Bans :</span> ' + bansTxt + '</div></div>';
+    }
+    return '<div class="grid cols-2">' +
+      side("🔵 Vous", draft.aId, draft.picks.A, draft.bans.A, true) +
+      side("🔴 Adversaire", draft.bId, draft.picks.B, draft.bans.B, false) + '</div>';
+  }
 
-    return '<div class="page-head"><div><h1>' + esc(ps.label) + ' — Bo' + ps.bo + '</h1>' +
-      '<div class="sub">' + my.flag + ' ' + esc(my.name) + ' vs ' + opp.flag + ' ' + esc(opp.name) + '</div></div></div>' +
-      '<div class="card"><h3>Phase de draft — choisissez vos champions</h3>' +
-      '<p class="muted">★ = champion maîtrisé (bonus de performance).</p>' + rows +
-      '<div style="margin-top:16px;display:flex;gap:10px">' +
-      '<button class="btn" data-action="auto-draft">🎲 Draft automatique</button>' +
-      '<button class="btn primary big" data-action="run-match">⚔️ Lancer la série</button></div></div>';
+  function renderDraftBoard(ps, draft) {
+    var head = '<div class="page-head"><div><h1>Draft — ' + esc(ps.label) + ' (Bo' + ps.bo + ')</h1>' +
+      '<div class="sub">' + G.teams[draft.aId].flag + ' ' + esc(G.teams[draft.aId].name) +
+      ' vs ' + G.teams[draft.bId].flag + ' ' + esc(G.teams[draft.bId].name) + '</div></div></div>';
+    var panel = '';
+    if (draft.phase === "BAN") {
+      var recs = LM.Draft.recommendBans(G, draft, "A").slice(0, 10);
+      var bansLeft = 3 - draft.bans.A.length;
+      panel = '<div class="card"><h3>⛔ Phase de bans — bannissez un champion adverse (' +
+        (draft.bans.A.length + 1) + '/3)</h3>' +
+        '<p class="muted">Bannissez les champions forts ou maîtrisés par l\'adversaire. ' +
+        'Indices : tier méta + maîtrise du joueur en face.</p>' +
+        '<table class="row-hover"><thead><tr><th>Champion</th><th>Classe</th><th class="num">Méta</th>' +
+        '<th class="num">Maîtrise adv.</th><th>Poste</th><th></th></tr></thead><tbody>' +
+        recs.map(function (b) {
+          return '<tr><td><b>' + esc(b.champ) + '</b></td><td>' + clsTag(b.cls) + '</td>' +
+            '<td class="num">' + LM.Meta.tierLetter(b.meta) + '</td>' +
+            '<td class="num">' + b.mastery + '</td><td>' + roleTag(b.role) + '</td>' +
+            '<td><button class="btn sm danger" data-action="ban" data-champ="' + esc(b.champ) + '">Bannir</button></td></tr>';
+        }).join("") + '</tbody></table>' +
+        '<div style="margin-top:10px"><button class="btn sm" data-action="ban-skip">Passer ce ban</button></div></div>';
+    } else if (draft.phase === "PICK") {
+      var role = LM.Draft.curRole(draft);
+      var p = LM.Sim.lineup(G.teams[draft.aId])[role];
+      var recs2 = LM.Draft.recommendPicks(G, draft, role).slice(0, 16);
+      panel = '<div class="card"><h3>✅ À vous de choisir — ' + LM.ROLE_FR[role] + ' (' +
+        (p ? esc(p.name) : "") + ')</h3>' +
+        '<p class="muted">Triés par pertinence : méta forte, bonne maîtrise et contre de la compo adverse. ' +
+        '★ = champion du pool du joueur.</p>' +
+        '<table class="row-hover"><thead><tr><th>Champion</th><th>Classe</th><th class="num">Méta</th>' +
+        '<th class="num">Maîtrise</th><th class="num">Note</th><th></th></tr></thead><tbody>' +
+        recs2.map(function (rc) {
+          var star = (p && p.champs.indexOf(rc.champ) >= 0) ? "★ " : "";
+          return '<tr><td>' + star + '<b>' + esc(rc.champ) + '</b></td><td>' + clsTag(rc.cls) + '</td>' +
+            '<td class="num">' + LM.Meta.tierLetter(rc.meta) + '</td>' +
+            '<td class="num">' + rc.mastery + '</td>' +
+            '<td class="num">' + (rc.score >= 0 ? "+" : "") + rc.score.toFixed(1) + '</td>' +
+            '<td><button class="btn sm primary" data-action="pick" data-champ="' + esc(rc.champ) + '">Choisir</button></td></tr>';
+        }).join("") + '</tbody></table></div>';
+    }
+    return head + draftPanels(draft) + '<div style="margin-top:16px">' + panel + '</div>';
+  }
+
+  function renderDraftReview(ps, draft) {
+    var picks = LM.Draft.toPicks(draft);
+    var rA = LM.Meta.draftRating(G, G.teams[draft.aId], draft.picks.A, draft.picks.B);
+    var rB = LM.Meta.draftRating(G, G.teams[draft.bId], draft.picks.B, draft.picks.A);
+    return '<div class="page-head"><div><h1>Draft terminée — ' + esc(ps.label) + '</h1>' +
+      '<div class="sub">Vérifiez vos contres puis lancez la série.</div></div></div>' +
+      draftPanels(draft) +
+      '<div class="card" style="margin-top:16px"><h3>Analyse des compositions</h3>' +
+      '<div class="grid cols-2">' + ratingBox("🔵 Vous", rA) + ratingBox("🔴 Adversaire", rB) + '</div>' +
+      '<div style="text-align:center;margin-top:16px">' +
+      '<button class="btn primary big" data-action="run-series">⚔️ Lancer la série (Bo' + ps.bo + ')</button></div></div>';
+  }
+
+  function ratingBox(label, r) {
+    function sgn(v) { return (v >= 0 ? "+" : "") + v.toFixed(1); }
+    return '<div class="card"><h3>' + label + '</h3>' +
+      '<div class="kpi"><div class="k"><div class="v">' + Math.round(r.power) + '</div><div class="l">Puissance</div></div>' +
+      '<div class="k"><div class="v">' + sgn(r.comp) + '</div><div class="l">Compo</div></div>' +
+      '<div class="k"><div class="v" style="color:' + (r.counter >= 0 ? "var(--green)" : "var(--red)") + '">' +
+      sgn(r.counter) + '</div><div class="l">Contres</div></div></div>' +
+      '<table style="margin-top:8px"><tbody>' + r.roleDetail.map(function (d) {
+        return '<tr><td>' + roleTag(d.role) + '</td><td><b>' + esc(d.champ) + '</b> ' + clsTag(d.cls) + '</td>' +
+          '<td class="num muted">M ' + d.mastery + '</td><td class="num muted">Méta ' + LM.Meta.tierLetter(d.meta) + '</td></tr>';
+      }).join("") + '</tbody></table></div>';
   }
 
   function renderMatchResult(ps, myId, oppId) {
@@ -402,12 +516,21 @@
       var winId = hw ? res.homeId : res.awayId;
       return '<div class="g">Partie ' + (i + 1) + ' — <b>' + esc(G.teams[winId].short) + '</b> gagne · ' +
         g.kills[0] + '/' + g.kills[1] + ' kills · ' + g.duration + ' min</div>'; }).join("");
+    var g0 = res.games[0];
+    var analysis = "";
+    if (g0 && g0.ratingH) {
+      var myR = myId === res.homeId ? g0.ratingH : g0.ratingA;
+      var opR = myId === res.homeId ? g0.ratingA : g0.ratingH;
+      analysis = '<div class="card" style="margin-top:16px"><h3>Analyse du draft</h3>' +
+        '<div class="grid cols-2">' + ratingBox("🔵 Vous", myR) + ratingBox("🔴 Adversaire", opR) + '</div></div>';
+    }
     return '<div class="page-head"><h1>Résultat — ' + esc(ps.label) + '</h1></div>' +
       '<div class="card"><div class="win-banner ' + (won ? "win" : "loss") + '">' +
       (won ? "VICTOIRE 🎉" : "DÉFAITE") + '</div>' +
       '<div class="scoreboard">' + G.teams[myId].short + ' ' + myScore + ' — ' + opScore + ' ' + G.teams[oppId].short + '</div>' +
       '<div class="gamelog" style="margin-top:16px">' + games + '</div>' +
-      '<div style="text-align:center;margin-top:18px"><button class="btn primary big" data-action="after-match">Continuer ▶</button></div></div>';
+      '<div style="text-align:center;margin-top:18px"><button class="btn primary big" data-action="after-match">Continuer ▶</button></div></div>' +
+      analysis;
   }
 
   // ---------- Gestion des actions ----------
@@ -429,9 +552,13 @@
 
       case "nav": nav(d.s); break;
 
-      case "play":
+      case "play": {
         var ps = LM.Calendar.playerSeries(G);
-        if (ps) nav("match", { ps: ps }); break;
+        if (!ps) break;
+        var draft = LM.Draft.create(G, ps.homeId, ps.awayId);
+        LM.Draft.runAIUntilPlayer(G, draft);
+        nav("match", { ps: ps, draft: draft }); break;
+      }
       case "quicksim": {
         var ps2 = LM.Calendar.playerSeries(G);
         if (!ps2) break;
@@ -440,13 +567,16 @@
       }
       case "simround": lastLog = LM.Calendar.advance(G, null); save(); nav("hub"); break;
 
-      case "auto-draft": applyAutoDraft(); break;
-      case "run-match": runMatch(); break;
+      case "ban": doDraftAction(function (dr) { LM.Draft.applyBan(dr, "A", d.champ); }); break;
+      case "ban-skip": doDraftAction(function (dr) { LM.Draft.applyBan(dr, "A", null); }); break;
+      case "pick": doDraftAction(function (dr) { LM.Draft.applyPick(dr, "A", d.champ); }); break;
+      case "run-series": runSeries(); break;
       case "after-match": finishTurn(params.result); break;
 
       case "player": nav("player", { id: d.id }); break;
       case "train": doTrain(d.id, (document.getElementById("trainattr") || {}).value); break;
       case "train-row": doTrain(d.id, (document.getElementById("ta_" + d.id) || {}).value); break;
+      case "train-champ": doTrainChamp(d.id, (document.getElementById("champtrain") || {}).value); break;
       case "release": {
         var rr = LM.Transfers.release(G, d.id); toast(rr.msg); if (rr.ok) { save(); nav("roster"); } break;
       }
@@ -457,28 +587,17 @@
     }
   }
 
-  function applyAutoDraft() {
-    var ps = params.ps;
-    var myId = ps.homeId === G.teamId ? ps.homeId : ps.awayId;
-    var line = LM.Sim.lineup(G.teams[myId]);
-    LM.ROLES.forEach(function (r) {
-      var sel = document.getElementById("pick_" + r);
-      var p = line[r];
-      if (sel && p && p.champs.length) sel.value = p.champs[Math.floor(Math.random() * p.champs.length)];
-    });
-    toast("Draft automatique appliquée.");
+  function doDraftAction(fn) {
+    var draft = params.draft;
+    if (!draft) return;
+    fn(draft);
+    LM.Draft.runAIUntilPlayer(G, draft);
+    render();
   }
 
-  function runMatch() {
-    var ps = params.ps;
-    var myId = ps.homeId === G.teamId ? ps.homeId : ps.awayId;
-    var line = LM.Sim.lineup(G.teams[myId]);
-    var picks = {};
-    LM.ROLES.forEach(function (r) {
-      var sel = document.getElementById("pick_" + r);
-      picks[r] = sel ? sel.value : (line[r] && line[r].champs[0]);
-    });
-    var drafts = {}; drafts[myId] = picks;
+  function runSeries() {
+    var ps = params.ps, draft = params.draft;
+    var drafts = LM.Draft.toPicks(draft);
     var res = LM.Sim.series(G, ps.homeId, ps.awayId, ps.bo, drafts);
     params.result = res;
     render();
@@ -492,6 +611,11 @@
 
   function doTrain(id, attr) {
     var r = LM.Training.train(G, id, attr);
+    toast(r.msg); if (r.ok) { save(); render(); }
+  }
+
+  function doTrainChamp(id, champ) {
+    var r = LM.Training.trainChampion(G, id, champ);
     toast(r.msg); if (r.ok) { save(); render(); }
   }
 

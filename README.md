@@ -43,13 +43,32 @@ C'est tout. Pas d'internet requis, pas de logiciel à installer.
 
 ---
 
+## ⚔️ Mécaniques de draft (inspirées de Teamfight Manager)
+
+Le **draft est le cœur du jeu** : un bon draft peut battre une équipe plus forte sur le papier.
+
+- **Classes de champions** : chaque champion est un **Tank, Combattant, Assassin, Mage, Tireur ou Enchanteur**.
+- **Système de contres** (pierre-feuille-ciseaux) :
+  - 🗡️ **Assassin** ▶ bat **Mage / Tireur** (plonge les carries fragiles)
+  - 🏹 **Tireur / Mage** ▶ battent **Tank / Combattant** (déchirent la frontline)
+  - 🛡️ **Tank / Combattant** ▶ battent **Assassin** (collent et protègent)
+  - 💚 **Enchanteur** ▶ protège les carries des **Assassins**
+- **Pick & Ban réel** : tu bannis 3 champions, puis tu drafts rôle par rôle pendant que **l'IA adverse réagit et contre-pick**.
+- **Équilibre de composition** : il te faut une frontline, des sources de dégâts et de la portée — une compo déséquilibrée est pénalisée.
+- **Méta & patchs** : à **chaque split, un patch** buff/nerf des champions → la **tier list (écran « Méta »)** change, à toi d'adapter tes picks.
+- **Maîtrise des champions** : chaque joueur a une **maîtrise par champion** qui monte en jouant, et que tu peux **entraîner** (fiche du joueur). Forcer un joueur sur un champion qu'il ne maîtrise pas affaiblit ta puissance.
+
+Après chaque match, l'écran **« Analyse du draft »** te montre pourquoi tu as gagné ou perdu (puissance, bonus de compo, bonus/malus de contres).
+
 ## 🗂️ Structure du projet (pour modifier le jeu)
 
 ```
 index.html              ← le fichier à ouvrir
 css/style.css           ← thème graphique
-js/data/champions.js    ← liste des champions Riot
+js/data/champions.js    ← champions Riot + leur classe (Tank/Mage/…)
 js/data/leagues.js      ← ÉQUIPES & JOUEURS (modifie ici pour mettre à jour les rosters)
+js/core/meta.js         ← méta/patchs, contres, valeur de draft
+js/core/draft.js        ← draft pick & ban + IA adverse
 js/core/                ← moteur (simulation, calendrier, transferts, entraînement, sauvegarde)
 js/ui/app.js            ← interface
 ```

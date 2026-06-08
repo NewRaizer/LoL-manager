@@ -63,6 +63,9 @@
       standings: standings, champion: null, runnerUp: null, third: null,
       bracket: null
     };
+    // Nouveau patch à chaque split : la méta change, à vous d'adapter vos drafts.
+    G.patchNote++;
+    LM.Meta.repatch(G);
     LM.addNews(G, def.name + " — c'est parti !",
       "Le " + def.name + " commence. " + rounds.length + " journées de saison régulière vous attendent.");
   }

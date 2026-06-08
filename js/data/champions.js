@@ -179,6 +179,52 @@
     { n: "Zyra", r: ["SUP"] }
   ];
 
+  // -------- Classes de champions (inspiré de Teamfight Manager) --------
+  // 6 archetypes utilisés pour les contres et l'équilibre de composition.
+  LM.CLASSES = {
+    TANK: "Tank", BRUISER: "Combattant", ASSASSIN: "Assassin",
+    MAGE: "Mage", MARKSMAN: "Tireur", ENCHANTER: "Enchanteur"
+  };
+
+  var SET = {
+    TANK: ["Alistar", "Amumu", "Braum", "Cho'Gath", "Dr. Mundo", "Galio", "Gragas", "K'Sante",
+      "Leona", "Malphite", "Maokai", "Nautilus", "Nunu & Willump", "Ornn", "Poppy", "Rammus",
+      "Rell", "Sejuani", "Shen", "Sion", "Skarner", "Tahm Kench", "Taric", "Zac", "Singed",
+      "Volibear", "Sett"],
+    ASSASSIN: ["Akali", "Akshan", "Diana", "Ekko", "Evelynn", "Fizz", "Kassadin", "Katarina",
+      "Kha'Zix", "LeBlanc", "Master Yi", "Naafiri", "Nidalee", "Nocturne", "Pyke", "Qiyana",
+      "Rengar", "Shaco", "Talon", "Zed", "Elise", "Kayn"],
+    MARKSMAN: ["Aphelios", "Ashe", "Caitlyn", "Draven", "Ezreal", "Jhin", "Jinx", "Kai'Sa",
+      "Kalista", "Kog'Maw", "Lucian", "Miss Fortune", "Nilah", "Samira", "Senna", "Sivir",
+      "Smolder", "Tristana", "Twitch", "Varus", "Vayne", "Xayah", "Zeri"],
+    ENCHANTER: ["Bard", "Janna", "Lulu", "Milio", "Nami", "Renata Glasc", "Sona", "Soraka",
+      "Yuumi", "Zilean", "Karma", "Seraphine"],
+    MAGE: ["Ahri", "Anivia", "Annie", "Aurelion Sol", "Aurora", "Azir", "Brand", "Cassiopeia",
+      "Corki", "Heimerdinger", "Hwei", "Karthus", "Lissandra", "Lux", "Malzahar", "Morgana",
+      "Neeko", "Orianna", "Ryze", "Swain", "Sylas", "Syndra", "Taliyah", "Twisted Fate",
+      "Veigar", "Vel'Koz", "Vex", "Viktor", "Vladimir", "Xerath", "Ziggs", "Zoe", "Zyra",
+      "Fiddlesticks"],
+    BRUISER: ["Aatrox", "Ambessa", "Bel'Veth", "Briar", "Camille", "Darius", "Fiora", "Gangplank",
+      "Garen", "Gnar", "Gwen", "Hecarim", "Illaoi", "Irelia", "Jarvan IV", "Jax", "Kled",
+      "Lee Sin", "Mordekaiser", "Nasus", "Olaf", "Renekton", "Riven", "Trundle", "Udyr", "Urgot",
+      "Vi", "Viego", "Warwick", "Wukong", "Xin Zhao", "Yorick", "Yone", "Yasuo", "Jayce",
+      "Pantheon", "Rumble", "Quinn", "Kennen", "Tryndamere"]
+  };
+
+  LM.CLS = {};
+  // Priorité d'attribution (le 1er ensemble contenant le nom gagne).
+  var ORDER = ["ENCHANTER", "MARKSMAN", "ASSASSIN", "TANK", "MAGE", "BRUISER"];
+  function classify(c) {
+    for (var i = 0; i < ORDER.length; i++) {
+      if (SET[ORDER[i]].indexOf(c.n) >= 0) return ORDER[i];
+    }
+    if (c.r.indexOf("ADC") >= 0) return "MARKSMAN";
+    if (c.r.indexOf("SUP") >= 0) return "ENCHANTER";
+    if (c.r.indexOf("MID") >= 0) return "MAGE";
+    return "BRUISER";
+  }
+  LM.CHAMPIONS.forEach(function (c) { c.cls = classify(c); LM.CLS[c.n] = c.cls; });
+
   // Index pratique : { ROLE: [champions...] }
   LM.CHAMPIONS_BY_ROLE = { TOP: [], JNG: [], MID: [], ADC: [], SUP: [] };
   LM.CHAMPIONS.forEach(function (c) {

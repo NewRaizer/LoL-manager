@@ -42,6 +42,27 @@
     return { ok: true, msg: p.name + " s'est entraîné mais n'a pas progressé cette fois.", gain: 0 };
   };
 
+  // Entraîne un joueur sur un CHAMPION précis (monte sa maîtrise).
+  Tr.trainChampion = function (G, playerId, champ) {
+    var my = LM.myTeam(G);
+    var p = my.roster.find(function (x) { return x.id === playerId; });
+    if (!p) return { ok: false, msg: "Joueur introuvable." };
+    if (G.trainingUsed[playerId]) return { ok: false, msg: p.name + " s'est déjà entraîné ce tour-ci." };
+    if (!champ || (LM.CHAMPIONS_BY_ROLE[p.role] || []).indexOf(champ) < 0)
+      return { ok: false, msg: "Champion non jouable à ce poste." };
+    if (!p.mastery) p.mastery = {};
+    var cur = p.mastery[champ] != null ? p.mastery[champ] : 12;
+    var youth = LM.U.clamp(26 - p.age, 0, 8);
+    var gain = 4 + my.facilities * 0.6 + youth * 0.3;
+    if (cur > 80) gain *= 0.4;
+    p.mastery[champ] = LM.U.clamp(cur + gain, 0, 99);
+    // Au-delà de 55 de maîtrise, le champion entre dans le pool favori.
+    if (p.mastery[champ] >= 55 && p.champs.indexOf(champ) < 0) p.champs.push(champ);
+    p.condition = LM.U.clamp(p.condition - 6, 0, 100);
+    G.trainingUsed[playerId] = true;
+    return { ok: true, msg: p.name + " : maîtrise " + champ + " → " + Math.round(p.mastery[champ]) + "/99" };
+  };
+
   // Améliore les infrastructures du club (coût croissant).
   Tr.upgradeFacilities = function (G) {
     var my = LM.myTeam(G);

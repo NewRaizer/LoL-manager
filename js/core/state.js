@@ -38,6 +38,9 @@
     var potential = LM.U.clamp(ovrTmp + LM.U.rint(rng, 0, growth + 3), ovrTmp, 99);
 
     var champPool = pickChampPool(rng, def.role);
+    // Maîtrise par champion (0-99) : élevée sur le pool favori.
+    var mastery = {};
+    champPool.forEach(function (c, i) { mastery[c] = LM.U.rint(rng, i === 0 ? 78 : 55, i === 0 ? 95 : 86); });
     var p = {
       id: LM.U.uid(),
       name: def.name, role: def.role, nat: def.nat, age: age,
@@ -46,6 +49,7 @@
       morale: LM.U.rint(rng, 60, 85),    // moral (0-100)
       condition: 100,                    // condition physique (0-100)
       champs: champPool,                 // pool de champions favoris
+      mastery: mastery,                  // maîtrise par champion
       teamId: null,
       stats: { games: 0, wins: 0, kills: 0, deaths: 0, assists: 0 }
     };
@@ -108,8 +112,10 @@
       history: [],         // palmarès des saisons passées
       inbox: [],           // messages / actualités
       trainingUsed: {},    // joueurId -> bool (1 entraînement par étape)
-      patchNote: 1
+      patchNote: 1,
+      meta: {}             // force méta par champion (rempli ci-dessous)
     };
+    LM.Meta.init(G);
     LM.Calendar.startSeason(G);
     LM.addNews(G, "Bienvenue", "Bienvenue " + G.manager + " ! Vous prenez la tête de " +
       teams[chosenTeamId].name + ". Menez votre équipe vers le titre mondial.");
